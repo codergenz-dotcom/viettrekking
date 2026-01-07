@@ -1,0 +1,175 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Forest-inspired color palette */
+    --background: 40 20% 98%;
+    --foreground: 150 30% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 150 30% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 150 30% 15%;
+
+    /* Forest Green Primary */
+    --primary: 152 45% 28%;
+    --primary-foreground: 40 20% 98%;
+
+    /* Warm Earth Secondary */
+    --secondary: 35 25% 93%;
+    --secondary-foreground: 150 30% 20%;
+
+    --muted: 40 15% 94%;
+    --muted-foreground: 150 10% 45%;
+
+    /* Accent - Warm amber/orange */
+    --accent: 28 85% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 40 15% 88%;
+    --input: 40 15% 88%;
+    --ring: 152 45% 28%;
+
+    --radius: 0.75rem;
+
+    /* Custom mountain theme tokens */
+    --mountain-forest: 152 45% 28%;
+    --mountain-earth: 28 40% 35%;
+    --mountain-sky: 200 70% 55%;
+    --mountain-stone: 40 10% 65%;
+    --mountain-mist: 200 15% 95%;
+
+    /* Difficulty colors */
+    --difficulty-easy: 142 70% 45%;
+    --difficulty-medium: 45 90% 50%;
+    --difficulty-hard: 25 95% 55%;
+    --difficulty-extreme: 0 75% 55%;
+
+    /* Gradients */
+    --gradient-mountain: linear-gradient(135deg, hsl(152, 45%, 35%), hsl(152, 50%, 22%));
+    --gradient-sunrise: linear-gradient(135deg, hsl(28, 85%, 55%), hsl(45, 90%, 55%));
+    --gradient-card-hover: linear-gradient(180deg, transparent 0%, hsl(152, 45%, 28%, 0.03) 100%);
+
+    /* Shadows */
+    --shadow-card: 0 4px 20px -4px hsl(150, 20%, 20%, 0.08);
+    --shadow-card-hover: 0 12px 32px -8px hsl(150, 20%, 20%, 0.15);
+    --shadow-button: 0 4px 14px -3px hsl(152, 45%, 28%, 0.35);
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 150 30% 15%;
+    --sidebar-primary: 152 45% 28%;
+    --sidebar-primary-foreground: 40 20% 98%;
+    --sidebar-accent: 40 15% 96%;
+    --sidebar-accent-foreground: 150 30% 20%;
+    --sidebar-border: 40 15% 90%;
+    --sidebar-ring: 152 45% 28%;
+  }
+
+  .dark {
+    --background: 150 25% 8%;
+    --foreground: 40 20% 95%;
+
+    --card: 150 20% 12%;
+    --card-foreground: 40 20% 95%;
+
+    --popover: 150 20% 12%;
+    --popover-foreground: 40 20% 95%;
+
+    --primary: 152 50% 45%;
+    --primary-foreground: 150 25% 8%;
+
+    --secondary: 150 15% 18%;
+    --secondary-foreground: 40 20% 90%;
+
+    --muted: 150 15% 18%;
+    --muted-foreground: 40 10% 60%;
+
+    --accent: 28 85% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 150 15% 20%;
+    --input: 150 15% 20%;
+    --ring: 152 50% 45%;
+
+    --sidebar-background: 150 20% 10%;
+    --sidebar-foreground: 40 20% 95%;
+    --sidebar-primary: 152 50% 45%;
+    --sidebar-primary-foreground: 150 25% 8%;
+    --sidebar-accent: 150 15% 15%;
+    --sidebar-accent-foreground: 40 20% 90%;
+    --sidebar-border: 150 15% 18%;
+    --sidebar-ring: 152 50% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Be Vietnam Pro', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  .card-hover-lift {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .card-hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  .gradient-mountain {
+    background: var(--gradient-mountain);
+  }
+
+  .gradient-sunrise {
+    background: var(--gradient-sunrise);
+  }
+
+  .difficulty-badge {
+    @apply px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+
+  .difficulty-easy {
+    @apply bg-difficulty-easy/15 text-difficulty-easy;
+  }
+
+  .difficulty-medium {
+    @apply bg-difficulty-medium/15 text-difficulty-medium;
+  }
+
+  .difficulty-hard {
+    @apply bg-difficulty-hard/15 text-difficulty-hard;
+  }
+
+  .difficulty-extreme {
+    @apply bg-difficulty-extreme/15 text-difficulty-extreme;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

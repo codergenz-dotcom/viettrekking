@@ -120,12 +120,14 @@ export interface JoinTripRequest {
 export interface TripRegistrationResponse {
   id: string;
   tripId: string;
-  userId: string;
-  fullName: string;
+  accountId: string;
+  name: string;
   email: string;
   phone: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   registeredAt: string;
+  processedAt?: string | null;
+  rejectReason?: string | null;
   note?: string;
 }
 
@@ -136,6 +138,7 @@ export interface UpdateRegistrationStatusRequest {
 export interface MyRegistrationStatusResponse {
   registrationId: string;
   tripId: string;
+  accountId: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   registeredAt: string;
   rejectReason?: string | null;

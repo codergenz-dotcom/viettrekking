@@ -291,41 +291,32 @@ const MyTrips = () => {
   const fetchCompletedTrips = async () => {
     if (!currentUser?.id) return;
     try {
-      const mockUserCompletedTrips = mockCompletedTrips.filter(
-        trip => trip.participantId === currentUser.id
-      );
-
-      let organizerCompletedTrips: CompletedTrip[] = [];
-      try {
-        const stored = localStorage.getItem('completedTripsFromOrganizer');
-        if (stored) {
-          const allCompleted = JSON.parse(stored);
-          organizerCompletedTrips = allCompleted.filter(
-            (trip: CompletedTrip) => trip.participantId === currentUser.id
-          );
-        }
-      } catch {
-        console.error('Failed to load completed trips from organizer');
-      }
-
-      const allCompleted = [...mockUserCompletedTrips, ...organizerCompletedTrips];
-      const uniqueCompleted = allCompleted.filter(
-        (trip, index, self) => index === self.findIndex(t => t.id === trip.id)
-      );
-
-      const storedReviews = localStorage.getItem('tripReviews');
-      const reviews = storedReviews ? JSON.parse(storedReviews) : [];
-      const reviewedTripIds = reviews
-        .filter((r: { userId: string }) => r.userId === currentUser.id)
-        .map((r: { tripId: string }) => r.tripId);
-
-      const completedWithReviewStatus = uniqueCompleted.map(trip => ({
-        ...trip,
-        hasReviewed: reviewedTripIds.includes(trip.id) || reviewedTripIds.includes(trip.originalTripId),
+      const completedResponse = await userTripService.getMyTrips('COMPLETED', { search: debouncedSearchQuery });
+      const completedTripsFromApi = completedResponse.data.content.map((apiTrip): CompletedTrip => ({
+        id: apiTrip.id,
+        originalTripId: apiTrip.id,
+        name: apiTrip.name,
+        location: apiTrip.location,
+        image: apiTrip.images?.[0] || '',
+        difficulty: getDifficultyFromApi(apiTrip.difficulty),
+        departureDate: apiTrip.departureDate,
+        duration: apiTrip.durationType === 'SINGLE_DAY' ? '1 ngày' : `${apiTrip.durationDays} ngày`,
+        tripType: 'trekking',
+        participantId: currentUser.id,
+        completedDate: apiTrip.departureDate, // Using departure date as completed date for now
+        hasReviewed: false,
+        spotsRemaining: 0,
+        totalSpots: apiTrip.maxParticipants || apiTrip.expectedPorterCount,
+        leaders: 1,
+        portersAvailable: 0,
+        portersNeeded: apiTrip.expectedPorterCount,
+        estimatedPrice: apiTrip.estimatedPrice || calculateEstimatedPrice(apiTrip.includedCosts || []),
+        description: apiTrip.description,
+        organizerId: apiTrip.porter?.id || '',
+        registrationDeadline: apiTrip.registrationDeadline,
       }));
 
-      setCompletedTrips(completedWithReviewStatus);
-
+      setCompletedTrips(completedTripsFromApi);
     } catch (error) {
       console.error("Failed to fetch completed trips", error);
     }

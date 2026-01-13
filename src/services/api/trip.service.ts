@@ -105,7 +105,7 @@ export const userTripService = {
     return response.data;
   },
 
-  getMyTrips: async (filterType: 'CREATED' | 'APPLIED', params?: PaginationRequest): Promise<PaginatedResponse<TripListItemResponse>> => {
+  getMyTrips: async (filterType: 'CREATED' | 'APPLIED' | 'COMPLETED', params?: PaginationRequest): Promise<PaginatedResponse<TripListItemResponse>> => {
     const response = await api.get<PaginatedResponse<TripListItemResponse>>('/api/v1/user/trips/my-trips', {
       params: { filter_type: filterType, ...params }
     });

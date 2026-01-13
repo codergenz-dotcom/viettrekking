@@ -25,6 +25,7 @@ import AdminPorters from "./pages/admin/AdminPorters";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminTrips from "./pages/admin/AdminTrips";
 import AdminReviews from "./pages/admin/AdminReviews";
+import Notifications from "./pages/Notifications";
 
 const queryClient = new QueryClient();
 
@@ -97,6 +98,7 @@ const App = () => (
                       <Route path="/chat" element={<Chat />} />
                       <Route path="/profile" element={<Profile />} />
                       <Route path="/profile/:userId" element={<PublicProfile />} />
+                      <Route path="/notifications" element={<Notifications />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </AppLayout>

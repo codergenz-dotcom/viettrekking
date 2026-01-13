@@ -82,13 +82,14 @@ const TripDetail = ({ tripId: propTripId, isModal = false, onEdit: onEditProp }:
           if (response.data && Array.isArray(response.data)) {
             const mappedRegs: Registration[] = response.data.map(m => ({
               id: m.id,
-              tripId: m.tripId,
-              userId: m.userId,
-              name: m.fullName,
+              accountId: m.accountId,
+              name: m.name,
               email: m.email,
               phone: m.phone,
-              status: (m.status || 'PENDING').toLowerCase() as RegistrationStatus,
+              status: m.status || 'PENDING',
               registeredAt: m.registeredAt,
+              processedAt: m.processedAt,
+              rejectReason: m.rejectReason,
             }));
             setRegistrations(mappedRegs);
           }
@@ -106,13 +107,13 @@ const TripDetail = ({ tripId: propTripId, isModal = false, onEdit: onEditProp }:
           if (m && m.registrationId) {
             setCurrentUserReg({
               id: m.registrationId,
-              tripId: m.tripId,
-              userId: currentUser.id,
+              accountId: m.accountId,
               name: currentUser.name,
               email: currentUser.email || '',
               phone: currentUser.phone || '',
-              status: (m.status || 'PENDING').toLowerCase() as RegistrationStatus,
+              status: m.status || 'PENDING',
               registeredAt: m.registeredAt,
+              rejectReason: m.rejectReason,
             });
           } else {
             setCurrentUserReg(null);
@@ -197,7 +198,7 @@ const TripDetail = ({ tripId: propTripId, isModal = false, onEdit: onEditProp }:
       return;
     }
 
-    const existing = registrations.find(r => r.userId === currentUser.id);
+    const existing = registrations.find(r => r.accountId === currentUser.id);
     if (existing) {
       toast({
         title: "Bạn đã đăng ký",
@@ -218,12 +219,11 @@ const TripDetail = ({ tripId: propTripId, isModal = false, onEdit: onEditProp }:
 
       const newReg: Registration = {
         id: m.id,
-        tripId: m.tripId,
-        userId: m.userId,
-        name: m.fullName,
+        accountId: m.accountId,
+        name: m.name,
         email: m.email,
         phone: m.phone,
-        status: m.status.toLowerCase() as RegistrationStatus,
+        status: m.status,
         registeredAt: m.registeredAt,
       };
 
@@ -246,7 +246,7 @@ const TripDetail = ({ tripId: propTripId, isModal = false, onEdit: onEditProp }:
       await userTripService.updateRegistrationStatus(id!, registrationId, { status: 'APPROVED' });
 
       const updated = registrations.map(r =>
-        r.id === registrationId ? { ...r, status: "approved" as RegistrationStatus } : r
+        r.id === registrationId ? { ...r, status: "APPROVED" as RegistrationStatus } : r
       );
       setRegistrations(updated);
       saveRegistrations(id!, updated); // Consider removing this local storage save if server persists it
@@ -265,7 +265,7 @@ const TripDetail = ({ tripId: propTripId, isModal = false, onEdit: onEditProp }:
       await userTripService.updateRegistrationStatus(id!, registrationId, { status: 'REJECTED' });
 
       const updated = registrations.map(r =>
-        r.id === registrationId ? { ...r, status: "rejected" as RegistrationStatus } : r
+        r.id === registrationId ? { ...r, status: "REJECTED" as RegistrationStatus } : r
       );
       setRegistrations(updated);
       saveRegistrations(id!, updated); // Consider removing this local storage save if server persists it
@@ -330,8 +330,8 @@ const TripDetail = ({ tripId: propTripId, isModal = false, onEdit: onEditProp }:
     }
   };
 
-  const pendingRegistrations = registrations.filter((r) => r.status === "pending");
-  const currentUserRegistration = currentUserReg || registrations.find(r => r.userId === currentUser?.id);
+  const pendingRegistrations = registrations.filter((r) => r.status === "PENDING");
+  const currentUserRegistration = currentUserReg || registrations.find(r => r.accountId === currentUser?.id);
 
   return (
     <div className={isModal ? "" : "min-h-[calc(100vh-4rem)] bg-background"}>

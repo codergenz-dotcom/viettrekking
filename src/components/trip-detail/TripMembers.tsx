@@ -11,9 +11,9 @@ interface TripMembersProps {
 }
 
 export const TripMembers = ({ registrations, onApprove, onReject }: TripMembersProps) => {
-    const pendingRegistrations = registrations.filter((r) => r.status === "pending");
-    const approvedRegistrations = registrations.filter((r) => r.status === "approved");
-    const rejectedRegistrations = registrations.filter((r) => r.status === "rejected");
+    const pendingRegistrations = registrations.filter((r) => r.status === "PENDING");
+    const approvedRegistrations = registrations.filter((r) => r.status === "APPROVED");
+    const rejectedRegistrations = registrations.filter((r) => r.status === "REJECTED");
 
     return (
         <div className="space-y-6">

@@ -1,4 +1,4 @@
-export type RegistrationStatus = "pending" | "approved" | "rejected";
+export type RegistrationStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export interface CreatedTrip {
     id: string;
@@ -28,13 +28,14 @@ export interface CreatedTrip {
 
 export interface Registration {
     id: string;
-    tripId: string;
-    userId: string;
+    accountId: string;
     name: string;
     email: string;
     phone: string;
     status: RegistrationStatus;
     registeredAt: string;
+    processedAt?: string | null;
+    rejectReason?: string | null;
 }
 
 export interface TripReview {

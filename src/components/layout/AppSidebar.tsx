@@ -1,4 +1,4 @@
-import { Mountain, Calendar, Settings, MapPin, HelpCircle, Compass, Plus, MessageCircle } from 'lucide-react';
+import { Mountain, Calendar, Settings, MapPin, HelpCircle, Compass, Plus, MessageCircle, Bell } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { cn } from '@/lib/utils';
 import { Link, useNavigate } from 'react-router-dom';
@@ -22,6 +22,7 @@ const mainNavItems = [
   { title: 'Chuyến đi của tôi', url: '/my-trips', icon: Compass },
   { title: 'Khám phá', url: '/trips', icon: Mountain },
   { title: 'Tin nhắn', url: '/chat', icon: MessageCircle },
+  { title: 'Thông báo', url: '/notifications', icon: Bell },
   { title: 'Lịch trình', url: '/calendar', icon: Calendar },
   { title: 'Địa điểm', url: '/locations', icon: MapPin },
 ];

@@ -82,25 +82,25 @@ export const TripActions = ({
                 </>
             ) : currentUserRegistration ? (
                 <>
-                    {currentUserRegistration.status === "pending" && (
+                    {currentUserRegistration.status === "PENDING" && (
                         <Button disabled className="w-full h-12 text-base font-semibold bg-yellow-100 text-yellow-800 hover:bg-yellow-100 border-yellow-200 opacity-100">
                             Đang chờ duyệt
                         </Button>
                     )}
-                    {currentUserRegistration.status === "approved" && (
+                    {currentUserRegistration.status === "APPROVED" && (
                         <Button disabled className="w-full h-12 text-base font-semibold bg-green-100 text-green-800 hover:bg-green-100 border-green-200 opacity-100">
                             Đã tham gia
                         </Button>
                     )}
-                    {currentUserRegistration.status === "rejected" && (
+                    {currentUserRegistration.status === "REJECTED" && (
                         <Button disabled variant="destructive" className="w-full h-12 text-base font-semibold opacity-100">
                             Đã bị từ chối
                         </Button>
                     )}
                     <p className="text-xs text-muted-foreground text-center mt-2">
-                        {currentUserRegistration.status === "pending"
+                        {currentUserRegistration.status === "PENDING"
                             ? "Đăng ký của bạn đang chờ người tổ chức phê duyệt"
-                            : currentUserRegistration.status === "approved"
+                            : currentUserRegistration.status === "APPROVED"
                                 ? "Bạn đã là thành viên của chuyến đi này"
                                 : "Đăng ký của bạn đã bị từ chối"}
                     </p>

@@ -115,11 +115,11 @@ const saveChatRooms = () => {
 export const addUserToTripChat = (tripId: string, userId: string): ChatRoom | undefined => {
   const roomIndex = mockChatRooms.findIndex(room => room.tripId === tripId);
   if (roomIndex === -1) return undefined;
-  
+
   const room = mockChatRooms[roomIndex];
   if (!room.participants.includes(userId)) {
     room.participants = [...room.participants, userId];
-    mockChatRooms = [...mockChatRooms]; // Trigger re-render
+    mockChatRooms = [...mockChatRooms];
     saveChatRooms();
   }
   return room;
@@ -139,12 +139,12 @@ export const getChatRoomByTripId = (tripId: string): ChatRoom | undefined => {
 
 const generateTripMessages = (): Record<string, ChatMessage[]> => {
   const messages: Record<string, ChatMessage[]> = {};
-  
+
   mockTrips.forEach((trip) => {
     const roomId = `trip-chat-${trip.id}`;
     const organizer = mockAdminUsers.find(u => u.id === trip.organizerId);
     const organizerName = organizer?.name || 'Porter';
-    
+
     messages[roomId] = [
       {
         id: `msg-${roomId}-1`,
@@ -212,7 +212,7 @@ const generateTripMessages = (): Record<string, ChatMessage[]> => {
       },
     ];
   });
-  
+
   return messages;
 };
 

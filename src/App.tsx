@@ -4,9 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { PorterProvider } from "@/contexts/PorterContext";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { DevAccountSwitcher } from "@/components/DevAccountSwitcher";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import LandingPage from "./pages/LandingPage";
@@ -32,7 +31,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <PorterProvider>
+      <NotificationProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -45,18 +44,18 @@ const App = () => (
               {/* Landing page */}
               <Route path="/" element={<LandingPage />} />
               {/* Admin routes - protected */}
-              <Route 
-                path="/admin" 
+              <Route
+                path="/admin"
                 element={
-                  <ProtectedRoute requiredRole="admin">
+                  <ProtectedRoute requiredRole="ADMIN">
                     <AdminDashboard />
                   </ProtectedRoute>
-                } 
+                }
               />
               <Route
                 path="/admin/porters"
                 element={
-                  <ProtectedRoute requiredRole="admin">
+                  <ProtectedRoute requiredRole="ADMIN">
                     <AdminPorters />
                   </ProtectedRoute>
                 }
@@ -64,7 +63,7 @@ const App = () => (
               <Route
                 path="/admin/users"
                 element={
-                  <ProtectedRoute requiredRole="admin">
+                  <ProtectedRoute requiredRole="ADMIN">
                     <AdminUsers />
                   </ProtectedRoute>
                 }
@@ -72,7 +71,7 @@ const App = () => (
               <Route
                 path="/admin/trips"
                 element={
-                  <ProtectedRoute requiredRole="admin">
+                  <ProtectedRoute requiredRole="ADMIN">
                     <AdminTrips />
                   </ProtectedRoute>
                 }
@@ -80,7 +79,7 @@ const App = () => (
               <Route
                 path="/admin/reviews"
                 element={
-                  <ProtectedRoute requiredRole="admin">
+                  <ProtectedRoute requiredRole="ADMIN">
                     <AdminReviews />
                   </ProtectedRoute>
                 }
@@ -104,10 +103,9 @@ const App = () => (
                 }
               />
             </Routes>
-            <DevAccountSwitcher />
           </BrowserRouter>
         </TooltipProvider>
-      </PorterProvider>
+      </NotificationProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

@@ -18,7 +18,7 @@ interface ReviewDialogProps {
   onOpenChange: (open: boolean) => void;
   tripName: string;
   tripId: string;
-  onSubmit: (tripId: string, rating: number, feedback: string) => void;
+  onSubmit: (tripId: string, rating: number, feedback: string) => void | Promise<void>;
 }
 
 export const ReviewDialog = ({
@@ -33,7 +33,7 @@ export const ReviewDialog = ({
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (rating === 0) {
       toast.error('Vui lòng chọn số sao đánh giá');
       return;
@@ -45,15 +45,16 @@ export const ReviewDialog = ({
     }
 
     setIsSubmitting(true);
-    
-    setTimeout(() => {
-      onSubmit(tripId, rating, feedback.trim());
-      toast.success('Cảm ơn bạn đã đánh giá!');
-      setIsSubmitting(false);
+    try {
+      await onSubmit(tripId, rating, feedback.trim());
       setRating(0);
       setFeedback('');
       onOpenChange(false);
-    }, 500);
+    } catch (error) {
+      console.error("Review submission error:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleClose = () => {

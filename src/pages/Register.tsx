@@ -7,44 +7,43 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Backpack, Users } from "lucide-react";
-
-type SelectedRole = 'trekker' | 'porter' | null;
+import { useToast } from "@/hooks/use-toast";
 
 const Register = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { loginWithGoogle, loading } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<SelectedRole>(null);
 
-  const handleRegisterClick = () => {
-    setShowRoleDialog(true);
-  };
-
-  const handleRoleSelect = async (role: 'trekker' | 'porter') => {
-    setSelectedRole(role);
-    setShowRoleDialog(false);
-
+  const handleRegisterClick = async () => {
     try {
       setError(null);
-      await loginWithGoogle();
+      const data = await loginWithGoogle();
 
-      const uid = localStorage.getItem('firebase_uid') || Date.now().toString();
-
-      const profileCompleted = localStorage.getItem(`profileCompleted_${uid}`);
-
-      if (profileCompleted) {
-        navigate("/my-trips");
+      if (data.isNewUser) {
+        setShowRoleDialog(true);
       } else {
-        localStorage.setItem(`userRole_${uid}`, role);
-        navigate("/profile/setup");
+        toast({
+          title: "Chào mừng trở lại!",
+          description: "Tài khoản của bạn đã tồn tại. Đang đăng nhập...",
+        });
+        navigate("/trips");
       }
     } catch (err) {
       console.error("Register failed:", err);
       setError("Đăng ký thất bại. Vui lòng thử lại.");
     }
+  };
+
+  const handleRoleSelect = (role: 'trekker' | 'porter') => {
+    const uid = localStorage.getItem('firebase_uid') || Date.now().toString();
+    localStorage.setItem(`userRole_${uid}`, role);
+    setShowRoleDialog(false);
+    navigate("/profile/setup");
   };
 
   return (
@@ -202,41 +201,32 @@ const Register = () => {
       <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-center text-xl">
-              Bạn tham gia dưới tư cách là?
-            </DialogTitle>
+            <DialogTitle className="text-center text-xl">Bạn tham gia với vai trò nào?</DialogTitle>
+            <DialogDescription className="text-center">
+              Vui lòng chọn vai trò để chúng tôi chuẩn bị giao diện phù hợp nhất cho bạn.
+            </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            {/* Trekker Option */}
+          <div className="grid grid-cols-2 gap-4 py-8">
             <button
               onClick={() => handleRoleSelect('trekker')}
-              className="flex items-center gap-4 p-4 rounded-lg border-2 border-muted hover:border-primary hover:bg-primary/5 transition-all text-left"
+              className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-primary/20 hover:border-primary hover:bg-primary/5 transition-all group"
             >
-              <div className="p-3 rounded-full bg-primary/10">
-                <Users className="h-6 w-6 text-primary" />
+              <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Users className="w-8 h-8 text-primary" />
               </div>
-              <div>
-                <h3 className="font-semibold text-lg">Người tham gia (Trekker)</h3>
-                <p className="text-sm text-muted-foreground">
-                  Tham gia các chuyến đi trekking
-                </p>
-              </div>
+              <span className="font-bold text-foreground">Người đi trek</span>
+              <p className="text-xs text-muted-foreground mt-2 text-center">Tìm và tham gia các chuyến đi</p>
             </button>
 
-            {/* Porter Option */}
             <button
               onClick={() => handleRoleSelect('porter')}
-              className="flex items-center gap-4 p-4 rounded-lg border-2 border-muted hover:border-primary hover:bg-primary/5 transition-all text-left"
+              className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-primary/20 hover:border-primary hover:bg-primary/5 transition-all group"
             >
-              <div className="p-3 rounded-full bg-orange-100">
-                <Backpack className="h-6 w-6 text-orange-600" />
+              <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Backpack className="w-8 h-8 text-primary" />
               </div>
-              <div>
-                <h3 className="font-semibold text-lg">Người hỗ trợ (Porter)</h3>
-                <p className="text-sm text-muted-foreground">
-                  Tổ chức và dẫn đoàn trekking
-                </p>
-              </div>
+              <span className="font-bold text-foreground">Người hỗ trợ</span>
+              <p className="text-xs text-muted-foreground mt-2 text-center">Tạo và dẫn dắt các đoàn trek</p>
             </button>
           </div>
         </DialogContent>

@@ -1,9 +1,9 @@
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { Check, CheckCheck } from 'lucide-react';
 import type { ChatMessage as ChatMessageType } from '@/data/mockChats';
+import { SecureAvatar } from '@/components/ui/SecureAvatar';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -24,12 +24,15 @@ export function ChatMessage({ message, isOwn }: ChatMessageProps) {
   return (
     <div className={cn('flex gap-2 mb-3 group', isOwn ? 'flex-row-reverse' : 'flex-row')}>
       {!isOwn && (
-        <Avatar className="h-8 w-8 shrink-0 mt-1">
-          <AvatarImage src={message.senderAvatar} />
-          <AvatarFallback className="text-xs bg-primary/10 text-primary">
-            {message.senderName.charAt(0)}
-          </AvatarFallback>
-        </Avatar>
+        <SecureAvatar
+          src={message.senderAvatar}
+          className="h-8 w-8 shrink-0 mt-1"
+          fallback={
+            <span className="text-xs bg-primary/10 text-primary">
+              {message.senderName.charAt(0)}
+            </span>
+          }
+        />
       )}
       
       <div className={cn('flex flex-col max-w-[75%] md:max-w-[65%]', isOwn ? 'items-end' : 'items-start')}>

@@ -33,15 +33,14 @@ const settingsItems = [
 
 export function AppSidebar() {
   const { state } = useSidebar();
-  const { isPorter } = useAuth();
   const navigate = useNavigate();
   const isCollapsed = state === 'collapsed';
 
   return (
     <Sidebar collapsible="icon" className="[&[data-state=collapsed]]:w-16">
       <SidebarHeader className="border-b border-sidebar-border">
-        <Link 
-          to="/" 
+        <Link
+          to="/"
           className={cn(
             "flex items-center gap-3 py-3 hover:opacity-80 transition-opacity",
             isCollapsed ? "justify-center px-0" : "px-2"
@@ -60,6 +59,20 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        {/* User: Add Trip Button */}
+        <SidebarGroup>
+          <SidebarGroupContent className={cn(isCollapsed ? "px-2" : "px-3")}>
+            <Button
+              onClick={() => navigate('/create-trip')}
+              className="w-full gap-2"
+              size={isCollapsed ? "icon" : "default"}
+            >
+              <Plus className="h-4 w-4" />
+              {!isCollapsed && <span>Thêm chuyến</span>}
+            </Button>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>

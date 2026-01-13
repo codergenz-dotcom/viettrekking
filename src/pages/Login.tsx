@@ -1,21 +1,98 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Backpack, Users } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Label } from "@/components/ui/label";
+import { User, Lock } from "lucide-react";
+import { authService } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { loginWithGoogle, loading } = useAuth();
+  const { currentUser, setUser, loginWithGoogle } = useAuth();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
 
   const handleGoogleLogin = async () => {
     try {
       setError(null);
-      await loginWithGoogle();
-      navigate("/my-trips");
+      const data = await loginWithGoogle();
+
+      if (data.isNewUser) {
+        setShowRoleDialog(true);
+      } else {
+        navigate("/trips");
+      }
+    } catch (err) {
+      console.error("Google login failed:", err);
+      setError("Đăng nhập với Google thất bại.");
+    }
+  };
+
+  const handleRoleSelect = (role: 'trekker' | 'porter') => {
+    // Use currentUser.id or firebase_uid (which is set in loginWithGoogle)
+    // We prefer currentUser.id if available, but checking localStorage directly is safer 
+    // immediately after login if state hasn't propagated, though handleRoleSelect is a separate event.
+    // ProfileSetup checks both currentUser.id and localStorage['firebase_uid'].
+
+    // Attempt to get ID from multiple sources to be safe
+    const uid = currentUser?.id || localStorage.getItem('firebase_uid');
+
+    if (uid) {
+      localStorage.setItem(`userRole_${uid}`, role);
+    } else {
+      console.warn("Could not find user ID to save role preference");
+      // Fallback or just proceed - better than broken key
+    }
+
+    setShowRoleDialog(false);
+    navigate("/profile/setup");
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!username || !password) {
+      setError("Vui lòng nhập đầy đủ thông tin.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await authService.login({ username, password });
+
+      console.log("✅ Login success:", response);
+
+      setUser(response.data);
+
+      if (response.data.role === "ADMIN") {
+        navigate("/admin");
+      } else {
+        navigate("/trips");
+      }
     } catch (err) {
       console.error("Login failed:", err);
-      setError("Đăng nhập thất bại. Vui lòng thử lại.");
+      setError("Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -115,17 +192,73 @@ const Login = () => {
             </div>
           )}
 
-          {/* Google login button */}
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full h-14 text-base font-medium"
-            onClick={handleGoogleLogin}
-            disabled={loading}
-          >
-            {loading ? (
-              <div className="w-5 h-5 mr-3 border-2 border-gray-300 border-t-primary rounded-full animate-spin" />
-            ) : (
+          {/* Login form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="username">Tên đăng nhập</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="username"
+                  type="text"
+                  placeholder="Nhập tên đăng nhập"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="pl-10"
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Mật khẩu</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Nhập mật khẩu"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10"
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full h-12 text-base font-medium"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="w-5 h-5 mr-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Đang đăng nhập...
+                </>
+              ) : (
+                "Đăng nhập"
+              )}
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Hoặc
+                </span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-12 text-base font-medium"
+              onClick={handleGoogleLogin}
+              disabled={isSubmitting}
+            >
               <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
@@ -144,9 +277,9 @@ const Login = () => {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 />
               </svg>
-            )}
-            {loading ? "Đang đăng nhập..." : "Đăng nhập với Google"}
-          </Button>
+              Tiếp tục với Google
+            </Button>
+          </form>
 
           {/* Register link */}
           <p className="text-center text-sm text-muted-foreground">
@@ -169,6 +302,41 @@ const Login = () => {
           </p>
         </div>
       </div>
+
+      {/* Role Selection Dialog */}
+      <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl">Bạn tham gia với vai trò nào?</DialogTitle>
+            <DialogDescription className="text-center">
+              Vui lòng chọn vai trò để chúng tôi chuẩn bị giao diện phù hợp nhất cho bạn.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-8">
+            <button
+              onClick={() => handleRoleSelect('trekker')}
+              className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-primary/20 hover:border-primary hover:bg-primary/5 transition-all group"
+            >
+              <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Users className="w-8 h-8 text-primary" />
+              </div>
+              <span className="font-bold text-foreground">Người đi trek</span>
+              <p className="text-xs text-muted-foreground mt-2 text-center">Tìm và tham gia các chuyến đi</p>
+            </button>
+
+            <button
+              onClick={() => handleRoleSelect('porter')}
+              className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-primary/20 hover:border-primary hover:bg-primary/5 transition-all group"
+            >
+              <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Backpack className="w-8 h-8 text-primary" />
+              </div>
+              <span className="font-bold text-foreground">Người hỗ trợ</span>
+              <p className="text-xs text-muted-foreground mt-2 text-center">Tạo và dẫn dắt các đoàn trek</p>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

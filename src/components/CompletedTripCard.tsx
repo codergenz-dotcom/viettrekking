@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Compass, Star, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { SecureImage } from '@/components/ui/SecureImage';
 import {
   type CompletedTrip,
   difficultyLabels,
@@ -53,17 +54,16 @@ export const CompletedTripCard = ({ trip, index, onReview }: CompletedTripCardPr
       <div className="flex flex-col md:flex-row">
         {/* Image Section */}
         <div className="relative w-full md:w-48 h-36 md:h-auto shrink-0 overflow-hidden">
-          {trip.image ? (
-            <img
-              src={trip.image}
-              alt={trip.name}
-              className="absolute inset-0 w-full h-full object-cover opacity-80"
-            />
-          ) : (
-            <div className="absolute inset-0 gradient-mountain flex items-center justify-center opacity-60">
-              <Compass className="h-12 w-12 text-primary-foreground/30" />
-            </div>
-          )}
+          <SecureImage
+            src={trip.image}
+            alt={trip.name}
+            className="absolute inset-0 w-full h-full object-cover opacity-80"
+            fallback={
+              <div className="absolute inset-0 gradient-mountain flex items-center justify-center opacity-60">
+                <Compass className="h-12 w-12 text-primary-foreground/30" />
+              </div>
+            }
+          />
           <div className="absolute top-3 left-3">
             <Badge
               variant="secondary"

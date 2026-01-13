@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Table,
   TableBody,
@@ -24,8 +23,8 @@ import {
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { 
-  Star, 
+import {
+  Star,
   Search,
   Eye,
   Trash2,
@@ -35,125 +34,95 @@ import {
   Mountain
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { adminService, type TripReviewResponse } from '@/services/api';
+import { Loader2 } from 'lucide-react';
+import { SecureAvatar } from '@/components/ui/SecureAvatar';
 
-interface Review {
-  id: string;
-  tripId: string;
-  tripName: string;
-  userId: string;
-  userName: string;
-  userAvatar?: string;
-  rating: number;
-  feedback: string;
-  createdAt: string;
-  isVisible: boolean;
-}
-
-const defaultMockReviews: Review[] = [
-  {
-    id: 'review-1',
-    tripId: 'trip-1',
-    tripName: 'Chinh phục Fansipan 2N1Đ',
-    userId: 'user-1',
-    userName: 'Nguyễn Văn An',
-    userAvatar: '',
-    rating: 5,
-    feedback: 'Chuyến đi tuyệt vời! Porter rất nhiệt tình và chu đáo. Cảnh đẹp ngoài sức tưởng tượng. Sẽ quay lại lần nữa!',
-    createdAt: '2026-01-03T14:30:00Z',
-    isVisible: true,
-  },
-  {
-    id: 'review-2',
-    tripId: 'trip-2',
-    tripName: 'Tà Xùa săn mây cuối tuần',
-    userId: 'user-2',
-    userName: 'Trần Thị Bình',
-    userAvatar: '',
-    rating: 4,
-    feedback: 'Mây rất đẹp, thời tiết thuận lợi. Đồ ăn ngon nhưng lều hơi chật. Nhìn chung rất hài lòng với trải nghiệm.',
-    createdAt: '2026-01-02T09:15:00Z',
-    isVisible: true,
-  },
-  {
-    id: 'review-3',
-    tripId: 'trip-1',
-    tripName: 'Chinh phục Fansipan 2N1Đ',
-    userId: 'user-3',
-    userName: 'Lê Minh Cường',
-    userAvatar: '',
-    rating: 5,
-    feedback: 'Đây là lần đầu tiên tôi leo núi và trải nghiệm thật sự đáng nhớ. Hướng dẫn viên rất chuyên nghiệp, giải thích kỹ càng về an toàn.',
-    createdAt: '2026-01-01T16:45:00Z',
-    isVisible: true,
-  },
-];
-
-const getStoredReviews = (): Review[] => {
-  try {
-    const stored = localStorage.getItem('tripReviews');
-    if (!stored) return defaultMockReviews;
-    const userReviews = JSON.parse(stored);
-    return [...defaultMockReviews, ...userReviews];
-  } catch {
-    return defaultMockReviews;
-  }
-};
 
 const AdminReviews = () => {
-  const [reviews, setReviews] = useState<Review[]>(getStoredReviews());
-  const [selectedReview, setSelectedReview] = useState<Review | null>(null);
+  const [reviews, setReviews] = useState<TripReviewResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedReview, setSelectedReview] = useState<TripReviewResponse | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  useEffect(() => {
+    fetchReviews();
+  }, []);
+
+  const fetchReviews = async () => {
+    setIsLoading(true);
+    try {
+      const response = await adminService.getReviews({ size: 100 });
+      setReviews(response.data.content);
+    } catch (error) {
+      console.error('Failed to fetch reviews:', error);
+      toast.error('Không thể tải danh sách đánh giá');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const filteredReviews = reviews.filter((review) => {
     const query = searchQuery.toLowerCase();
     return (
-      review.tripName.toLowerCase().includes(query) ||
-      review.userName.toLowerCase().includes(query) ||
-      review.feedback.toLowerCase().includes(query)
+      review.userFullName.toLowerCase().includes(query) ||
+      review.comment.toLowerCase().includes(query)
     );
   });
 
-  const averageRating = reviews.length > 0 
+  const averageRating = reviews.length > 0
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : '0';
 
   const ratingDistribution = [5, 4, 3, 2, 1].map(star => ({
     star,
     count: reviews.filter(r => r.rating === star).length,
-    percentage: reviews.length > 0 
-      ? (reviews.filter(r => r.rating === star).length / reviews.length) * 100 
+    percentage: reviews.length > 0
+      ? (reviews.filter(r => r.rating === star).length / reviews.length) * 100
       : 0,
   }));
 
-  const handleToggleVisibility = (review: Review) => {
-    setReviews(prev =>
-      prev.map(r =>
-        r.id === review.id ? { ...r, isVisible: !r.isVisible } : r
-      )
-    );
-    toast.success(
-      review.isVisible 
-        ? `Đã ẩn đánh giá của ${review.userName}` 
-        : `Đã hiện đánh giá của ${review.userName}`
-    );
+  const handleToggleVisibility = async (review: TripReviewResponse) => {
+    try {
+      await adminService.hideReview(review.id);
+      setReviews(prev =>
+        prev.map(r =>
+          r.id === review.id ? { ...r, isVisible: !r.isVisible } : r
+        )
+      );
+      toast.success(
+        review.isVisible
+          ? `Đã ẩn đánh giá của ${review.userFullName}`
+          : `Đã hiện đánh giá của ${review.userFullName}`
+      );
+    } catch (error) {
+      console.error('Failed to toggle visibility:', error);
+      toast.error('Có lỗi xảy ra khi thay đổi trạng thái hiển thị');
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedReview) return;
-    setReviews(prev => prev.filter(r => r.id !== selectedReview.id));
-    toast.success('Đã xóa đánh giá');
-    setIsDeleteOpen(false);
-    setSelectedReview(null);
+    try {
+      await adminService.deleteReview(selectedReview.id);
+      setReviews(prev => prev.filter(r => r.id !== selectedReview.id));
+      toast.success('Đã xóa đánh giá');
+      setIsDeleteOpen(false);
+      setSelectedReview(null);
+    } catch (error) {
+      console.error('Failed to delete review:', error);
+      toast.error('Có lỗi xảy ra khi xóa đánh giá');
+    }
   };
 
-  const openDetailModal = (review: Review) => {
+  const openDetailModal = (review: TripReviewResponse) => {
     setSelectedReview(review);
     setIsDetailOpen(true);
   };
 
-  const openDeleteModal = (review: Review) => {
+  const openDeleteModal = (review: TripReviewResponse) => {
     setSelectedReview(review);
     setIsDeleteOpen(true);
   };
@@ -261,7 +230,7 @@ const AdminReviews = () => {
                     <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
                   </div>
                   <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-amber-400 rounded-full transition-all"
                       style={{ width: `${percentage}%` }}
                     />
@@ -288,7 +257,12 @@ const AdminReviews = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {filteredReviews.length === 0 ? (
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                <p className="text-muted-foreground">Đang tải danh sách đánh giá...</p>
+              </div>
+            ) : filteredReviews.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Star className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>Không có đánh giá nào</p>
@@ -311,25 +285,28 @@ const AdminReviews = () => {
                     <TableRow key={review.id}>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={review.userAvatar} />
-                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                              {review.userName.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">{review.userName}</span>
+                          <SecureAvatar
+                            src={review.userAvatar}
+                            className="h-8 w-8"
+                            fallback={
+                              <span className="bg-primary/10 text-primary text-xs">
+                                {review.userFullName.charAt(0)}
+                              </span>
+                            }
+                          />
+                          <span className="font-medium">{review.userFullName}</span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Mountain className="h-4 w-4 text-muted-foreground" />
-                          <span className="max-w-[150px] truncate">{review.tripName}</span>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Mountain className="h-4 w-4" />
+                          <span className="max-w-[150px] truncate">{review.tripId}</span>
                         </div>
                       </TableCell>
                       <TableCell>{renderStars(review.rating)}</TableCell>
                       <TableCell>
                         <p className="max-w-[200px] truncate text-muted-foreground">
-                          {review.feedback}
+                          {review.comment}
                         </p>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
@@ -394,20 +371,23 @@ const AdminReviews = () => {
               <DialogHeader>
                 <DialogTitle>Chi tiết đánh giá</DialogTitle>
                 <DialogDescription>
-                  Đánh giá từ {selectedReview.userName}
+                  Đánh giá từ {selectedReview.userFullName}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={selectedReview.userAvatar} />
-                    <AvatarFallback className="bg-primary/10 text-primary">
-                      {selectedReview.userName.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <SecureAvatar
+                    src={selectedReview.userAvatar}
+                    className="h-12 w-12"
+                    fallback={
+                      <span className="bg-primary/10 text-primary">
+                        {selectedReview.userFullName.charAt(0)}
+                      </span>
+                    }
+                  />
                   <div>
-                    <p className="font-medium">{selectedReview.userName}</p>
+                    <p className="font-medium">{selectedReview.userFullName}</p>
                     <p className="text-sm text-muted-foreground">
                       {format(new Date(selectedReview.createdAt), "dd/MM/yyyy 'lúc' HH:mm", { locale: vi })}
                     </p>
@@ -417,7 +397,7 @@ const AdminReviews = () => {
                 <div className="p-4 bg-muted/50 rounded-lg space-y-3">
                   <div className="flex items-center gap-2">
                     <Mountain className="h-4 w-4 text-primary" />
-                    <span className="font-medium">{selectedReview.tripName}</span>
+                    <span className="font-medium">Chuyến đi ID: {selectedReview.tripId}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {renderStars(selectedReview.rating, 'md')}
@@ -429,7 +409,7 @@ const AdminReviews = () => {
 
                 <div>
                   <p className="text-sm font-medium mb-2">Nội dung đánh giá:</p>
-                  <p className="text-muted-foreground">{selectedReview.feedback}</p>
+                  <p className="text-muted-foreground">{selectedReview.comment}</p>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -472,7 +452,7 @@ const AdminReviews = () => {
           <DialogHeader>
             <DialogTitle>Xác nhận xóa</DialogTitle>
             <DialogDescription>
-              Bạn có chắc muốn xóa đánh giá của "{selectedReview?.userName}"? Hành động này không thể hoàn tác.
+              Bạn có chắc muốn xóa đánh giá của "{selectedReview?.userFullName}"? Hành động này không thể hoàn tác.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

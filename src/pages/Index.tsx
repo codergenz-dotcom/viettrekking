@@ -1,15 +1,22 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Mountain, SlidersHorizontal, X } from 'lucide-react';
+import { Plus, Mountain, SlidersHorizontal, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SearchBar } from '@/components/SearchBar';
 import { FilterSidebar, type Filters } from '@/components/FilterSidebar';
 import { TripCard } from '@/components/TripCard';
-import { CompletedTripCard } from '@/components/CompletedTripCard';
-import { mockTrips, mockCompletedTrips, type Trip, type Difficulty, type TripType } from '@/data/mockTrips';
+import { type Trip, type Difficulty, type TripType } from '@/data/mockTrips';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import TripDetail from './TripDetail';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { userTripService, type TripListItemResponse, type DifficultyLevel, type SearchTripsParams } from '@/services/api';
 
 const initialFilters: Filters = {
   locations: [],
@@ -18,97 +25,112 @@ const initialFilters: Filters = {
   dateTo: '',
 };
 
-const parseCostString = (cost: string): number => {
-  if (!cost) return 0;
-  let cleaned = cost.toLowerCase().replace(/[^\d.,trđk]/g, '');
-
-  if (cleaned.includes('tr')) {
-    const num = parseFloat(cleaned.replace(/[^\d.]/g, ''));
-    return num * 1000000;
-  }
-
-  if (cleaned.includes('k')) {
-    const num = parseFloat(cleaned.replace(/[^\d.]/g, ''));
-    return num * 1000;
-  }
-
-  cleaned = cleaned.replace(/,/g, '').replace('đ', '');
-  return parseFloat(cleaned) || 0;
+const mapDifficultyFromApi = (difficulty: DifficultyLevel): Difficulty => {
+  const map: Record<DifficultyLevel, Difficulty> = {
+    'EASY': 'easy',
+    'MEDIUM': 'medium',
+    'HARD': 'hard',
+    'EXTREME': 'extreme',
+  };
+  return map[difficulty] || 'medium';
 };
 
-const calculateEstimatedPrice = (includedCosts: { content: string; cost: string }[]): number => {
-  return includedCosts.reduce((sum, item) => sum + parseCostString(item.cost), 0);
+const mapDifficultyToApi = (difficulty: Difficulty): DifficultyLevel => {
+  const map: Record<Difficulty, DifficultyLevel> = {
+    'easy': 'EASY',
+    'medium': 'MEDIUM',
+    'hard': 'HARD',
+    'extreme': 'EXTREME',
+  };
+  return map[difficulty];
 };
 
-const getCreatedTrips = (): Trip[] => {
-  try {
-    const stored = localStorage.getItem('createdTrips');
-    if (!stored) return [];
-    const trips = JSON.parse(stored);
-    return trips
-      .filter((t: { status: string }) => t.status === 'approved')
-      .map((t: {
-        id: string;
-        name: string;
-        location: string;
-        image?: string;
-        images?: string[];
-        difficulty: string;
-        departureDate?: string;
-        date?: string;
-        durationDays?: number;
-        durationType?: string;
-        maxParticipants?: number;
-        participants?: number;
-        createdBy?: string;
-        includedCosts?: { content: string; cost: string }[];
-        estimatedPrice?: number;
-      }) => ({
-        id: t.id,
-        name: t.name,
-        location: t.location,
-        image: t.image || t.images?.[0] || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b',
-        difficulty: (t.difficulty || 'medium') as Difficulty,
-        departureDate: typeof t.departureDate === 'string'
-          ? t.departureDate
-          : t.departureDate
-            ? new Date(t.departureDate).toISOString().split('T')[0]
-            : new Date().toISOString().split('T')[0],
-        duration: t.durationType === 'single-day' ? '1 ngày' : `${t.durationDays || 2} ngày`,
-        tripType: 'trekking' as TripType,
-        spotsRemaining: (t.maxParticipants || 20) - (t.participants || 0),
-        totalSpots: t.maxParticipants || 20,
-        leaders: 1,
-        portersAvailable: 0,
-        portersNeeded: 1,
-        estimatedPrice: t.estimatedPrice || calculateEstimatedPrice(t.includedCosts || []),
-        description: '',
-        organizerId: t.createdBy || '',
-      }));
-  } catch {
-    return [];
-  }
+const mapApiTripToTrip = (apiTrip: TripListItemResponse): Trip => {
+  const durationDays = parseInt(apiTrip.durationDays) || 2;
+  const duration = apiTrip.durationType === 'SINGLE_DAY'
+    ? '1 ngày'
+    : `${durationDays} ngày ${durationDays - 1} đêm`;
+
+  return {
+    id: apiTrip.id,
+    name: apiTrip.name,
+    location: apiTrip.location,
+    image: apiTrip.images?.[0] || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b',
+    difficulty: mapDifficultyFromApi(apiTrip.difficulty),
+    departureDate: (apiTrip.departureDate || '').split(' ')[0],
+    registrationDeadline: (apiTrip.registrationDeadline || '').split(' ')[0],
+    duration,
+    tripType: 'trekking' as TripType,
+    spotsRemaining: apiTrip.expectedPorterCount,
+    totalSpots: apiTrip.expectedPorterCount,
+    leaders: 1,
+    portersAvailable: 0,
+    portersNeeded: apiTrip.expectedPorterCount,
+    estimatedPrice: apiTrip.estimatedPrice || (apiTrip.includedCosts || []).reduce((sum, item) => sum + (parseInt(item.cost) || 0), 0),
+    description: apiTrip.description,
+    organizerId: apiTrip.porter?.id || '',
+  };
 };
 
 const Index = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { isPorter, currentUser } = useAuth();
+  const { currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
-  const [createdTrips, setCreatedTrips] = useState<Trip[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   useEffect(() => {
-    setCreatedTrips(getCreatedTrips());
-  }, []);
+    const fetchTrips = async () => {
+      setIsLoading(true);
+      try {
+        const hasSearchOrFilters =
+          searchQuery.trim() !== '' ||
+          filters.locations.length > 0 ||
+          filters.difficulties.length > 0 ||
+          filters.dateFrom !== '';
+
+        let response;
+        if (hasSearchOrFilters) {
+          const searchParams: SearchTripsParams = {
+            search: searchQuery || undefined,
+            location: filters.locations.length > 0 ? filters.locations[0] : undefined,
+            difficulty: filters.difficulties.length > 0 ? mapDifficultyToApi(filters.difficulties[0]) : undefined,
+            date_from: filters.dateFrom || undefined,
+          };
+          response = await userTripService.searchTrips(searchParams, { size: 100 });
+        } else {
+          response = await userTripService.getActiveTrips({
+            page: 1,
+            size: 100,
+            sortBy: 'id',
+            sortDirection: 'ASC'
+          } as any);
+        }
+
+        const mappedTrips = response.data.content.map(mapApiTripToTrip);
+        setTrips(mappedTrips);
+      } catch (error) {
+        console.error('Error fetching trips:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const timeoutId = setTimeout(fetchTrips, 300);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, filters.locations, filters.difficulties, filters.dateFrom]);
 
   useEffect(() => {
     const location = searchParams.get('location');
     const difficulty = searchParams.get('difficulty');
     const date = searchParams.get('date');
-    
+
     setFilters(prev => ({
       ...prev,
       locations: location ? [location] : prev.locations,
@@ -125,10 +147,9 @@ const Index = () => {
   };
 
   const filteredTrips = useMemo(() => {
-    let result = [...mockTrips, ...createdTrips];
+    let result = [...trips];
 
-    if (isPorter && currentUser?.id) {
-      result = result.filter((trip) => trip.organizerId !== currentUser.id);
+    if (currentUser?.id) {
     }
 
     if (searchQuery) {
@@ -166,7 +187,7 @@ const Index = () => {
     );
 
     return result;
-  }, [searchQuery, filters, createdTrips, currentUser?.id, isPorter]);
+  }, [searchQuery, filters, trips, currentUser?.username]);
 
   const clearFilters = () => {
     setFilters(initialFilters);
@@ -180,11 +201,9 @@ const Index = () => {
 
   return (
     <div className="bg-background">
-      {/* Page Header */}
       <div className="border-b border-border/60 bg-background/50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col gap-4">
-            {/* Top Row */}
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-xl md:text-2xl font-bold text-foreground">
@@ -194,23 +213,19 @@ const Index = () => {
                   Tìm và tham gia các chuyến leo núi phù hợp với bạn
                 </p>
               </div>
-              {isPorter && (
-                <Button 
-                  onClick={() => navigate('/create-trip')}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-semibold gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span className="hidden sm:inline">Tạo chuyến đi mới</span>
-                  <span className="sm:hidden">Tạo mới</span>
-                </Button>
-              )}
+              <Button
+                onClick={() => navigate('/create-trip')}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-semibold gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Tạo chuyến đi mới</span>
+                <span className="sm:hidden">Tạo mới</span>
+              </Button>
             </div>
 
-            {/* Search Row */}
             <div className="flex items-center gap-3">
               <SearchBar value={searchQuery} onChange={setSearchQuery} />
 
-              {/* Mobile Filter Toggle */}
               <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
                 <SheetTrigger asChild>
                   <Button
@@ -256,32 +271,47 @@ const Index = () => {
           {/* Trip List */}
           <div className="flex-1 min-w-0">
             {/* Results Count */}
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm text-muted-foreground">
-                Tìm thấy{' '}
-                <span className="font-semibold text-foreground">
-                  {filteredTrips.length}
-                </span>{' '}
-                chuyến đi
-              </p>
-              {activeFilterCount > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearFilters}
-                  className="text-muted-foreground hover:text-foreground gap-1"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Xóa bộ lọc ({activeFilterCount})
-                </Button>
-              )}
-            </div>
+            {!isLoading && (
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm text-muted-foreground">
+                  Tìm thấy{' '}
+                  <span className="font-semibold text-foreground">
+                    {filteredTrips.length}
+                  </span>{' '}
+                  chuyến đi
+                </p>
+                {activeFilterCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    className="text-muted-foreground hover:text-foreground gap-1"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Xóa bộ lọc ({activeFilterCount})
+                  </Button>
+                )}
+              </div>
+            )}
 
             {/* Trip Cards */}
-            {filteredTrips.length > 0 ? (
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                <p className="text-muted-foreground">Đang tải danh sách chuyến đi...</p>
+              </div>
+            ) : filteredTrips.length > 0 ? (
               <div className="space-y-4">
                 {filteredTrips.map((trip, index) => (
-                  <TripCard key={trip.id} trip={trip} index={index} />
+                  <TripCard
+                    key={trip.id}
+                    trip={trip}
+                    index={index}
+                    onClick={(id) => {
+                      setSelectedTripId(id);
+                      setIsDetailOpen(true);
+                    }}
+                  />
                 ))}
               </div>
             ) : (
@@ -309,24 +339,18 @@ const Index = () => {
               </div>
             )}
 
-            {/* Completed Trips Section */}
-            {mockCompletedTrips.length > 0 && (
-              <div className="mt-10 pt-8 border-t border-border">
-                <h2 className="text-lg font-bold text-foreground mb-4">
-                  Chuyến đi đã hoàn thành ({mockCompletedTrips.length})
-                </h2>
-                <div className="space-y-4">
-                  {mockCompletedTrips.map((trip, index) => (
-                    <CompletedTripCard 
-                      key={trip.id} 
-                      trip={trip} 
-                      index={index} 
-                      onReview={handleReview}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Trip Detail Modal */}
+            <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+              <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0 border-none">
+                <DialogHeader className="sr-only">
+                  <DialogTitle>Chi tiết chuyến đi</DialogTitle>
+                </DialogHeader>
+                {selectedTripId && (
+                  <TripDetail tripId={selectedTripId} isModal={true} />
+                )}
+              </DialogContent>
+            </Dialog>
+
           </div>
         </div>
       </main>

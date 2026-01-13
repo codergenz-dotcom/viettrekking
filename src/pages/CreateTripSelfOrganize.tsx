@@ -8,6 +8,8 @@ import { CostTab } from "@/components/create-trip/CostTab";
 import { PreparationTab } from "@/components/create-trip/PreparationTab";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { userTripService, type CreateUserTripPayload, type DifficultyLevel, type DurationType } from "@/services/api";
+import { Loader2 } from "lucide-react";
 
 export interface TripFormData {
   name: string;
@@ -31,6 +33,8 @@ export interface TripFormData {
   costNotes: string;
 
   preparations: string[];
+
+  isDraft: string;
 }
 
 const parseCostString = (cost: string): number => {
@@ -74,6 +78,60 @@ const initialFormData: TripFormData = {
   additionalCosts: [{ content: "", cost: "" }],
   costNotes: "",
   preparations: [""],
+  isDraft: "true"
+};
+
+const mapDifficulty = (difficulty: string): DifficultyLevel => {
+  const map: Record<string, DifficultyLevel> = {
+    'easy': 'EASY',
+    'moderate': 'MEDIUM',
+    'hard': 'HARD',
+    'expert': 'EXTREME',
+  };
+  return map[difficulty.toLowerCase()] || 'MEDIUM';
+};
+
+const mapDurationType = (type: string): DurationType => {
+  return type === 'single-day' ? 'SINGLE_DAY' : 'MULTI_DAY';
+};
+
+const formDataToPayload = (formData: TripFormData, isDraft: boolean): CreateUserTripPayload => {
+  return {
+    name: formData.name,
+    location: formData.location,
+    difficulty: mapDifficulty(formData.difficulty),
+    description: formData.description,
+    departureDate: formData.departureDate?.toISOString() || new Date().toISOString(),
+    registrationDeadline: formData.registrationDeadline?.toISOString() || new Date().toISOString(),
+    contactEmail: formData.contactEmail,
+    contactPhone: formData.contactPhone,
+    expectedPorterCount: formData.expectedPorterCount,
+    discussionLink: formData.discussionLink || undefined,
+    images: formData.images.length > 0 ? formData.images : undefined,
+    durationType: mapDurationType(formData.durationType),
+    durationDays: formData.durationDays,
+    schedule: formData.schedule
+      .filter(s => s.time || s.content)
+      .map(s => ({
+        time: s.time,
+        content: s.content,
+      })),
+    includedCosts: formData.includedCosts
+      .filter(c => c.content)
+      .map(c => ({
+        content: c.content,
+        cost: c.cost,
+      })),
+    additionalCosts: formData.additionalCosts
+      .filter(c => c.content)
+      .map(c => ({
+        content: c.content,
+        cost: c.cost,
+      })),
+    costNotes: formData.costNotes || undefined,
+    preparations: formData.preparations.filter(p => p.trim() !== ''),
+    isDraft,
+  };
 };
 
 const CreateTripSelfOrganize = () => {
@@ -82,21 +140,22 @@ const CreateTripSelfOrganize = () => {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState("basic-info");
   const [formData, setFormData] = useState<TripFormData>(initialFormData);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const editTripId = searchParams.get('edit');
   const isEditMode = !!editTripId;
 
   useEffect(() => {
-    if (editTripId) {
-      const stored = localStorage.getItem('createdTrips');
-      if (stored) {
-        const trips = JSON.parse(stored);
-        const tripToEdit = trips.find((t: { id: string }) => t.id === editTripId);
-        if (tripToEdit) {
+    const fetchTrip = async () => {
+      if (editTripId) {
+        setIsSubmitting(true);
+        try {
+          const response = await userTripService.getTripById(editTripId);
+          const tripToEdit = response.data;
           setFormData({
             name: tripToEdit.name || "",
             location: tripToEdit.location || "",
-            difficulty: tripToEdit.difficulty || "",
+            difficulty: (tripToEdit.difficulty || "").toLowerCase(),
             description: tripToEdit.description || "",
             departureDate: tripToEdit.departureDate ? new Date(tripToEdit.departureDate) : undefined,
             registrationDeadline: tripToEdit.registrationDeadline ? new Date(tripToEdit.registrationDeadline) : undefined,
@@ -105,84 +164,98 @@ const CreateTripSelfOrganize = () => {
             expectedPorterCount: tripToEdit.expectedPorterCount || 1,
             discussionLink: tripToEdit.discussionLink || "",
             images: tripToEdit.images || [],
-            durationType: tripToEdit.durationType || "multi-day",
+            durationType: tripToEdit.durationType === 'SINGLE_DAY' ? 'single-day' : 'multi-day',
             durationDays: tripToEdit.durationDays || "2N1D",
-            schedule: tripToEdit.schedule || [{ time: "", content: "" }],
-            includedCosts: tripToEdit.includedCosts || [{ content: "", cost: "" }],
-            additionalCosts: tripToEdit.additionalCosts || [{ content: "", cost: "" }],
+            schedule: tripToEdit.schedule?.map(s => ({ time: s.time, content: s.content })) || [{ time: "", content: "" }],
+            includedCosts: tripToEdit.includedCosts?.map(c => ({ content: c.content, cost: c.cost || "" })) || [{ content: "", cost: "" }],
+            additionalCosts: tripToEdit.additionalCosts?.map(c => ({ content: c.content, cost: c.cost || "" })) || [{ content: "", cost: "" }],
             costNotes: tripToEdit.costNotes || "",
             preparations: tripToEdit.preparations || [""],
+            isDraft: tripToEdit.isDraft ? "true" : "false",
           });
+        } catch (error) {
+          console.error("Fetch trip error:", error);
+          toast.error("Không thể tải thông tin chuyến đi");
+          navigate("/my-trips");
+        } finally {
+          setIsSubmitting(false);
         }
       }
-    }
-  }, [editTripId]);
-
-  const handleSaveDraft = () => {
-    const drafts = JSON.parse(localStorage.getItem("tripDrafts") || "[]");
-    const newDraft = {
-      id: `draft-${Date.now()}`,
-      ...formData,
-      status: "draft",
-      createdBy: currentUser?.id,
-      createdAt: new Date().toISOString(),
     };
-    drafts.push(newDraft);
-    localStorage.setItem("tripDrafts", JSON.stringify(drafts));
-    toast.success("Đã lưu nháp thành công!");
+
+    fetchTrip();
+  }, [editTripId, navigate]);
+
+  const handleSaveDraft = async () => {
+    if (!formData.name) {
+      toast.error("Vui lòng nhập tên chuyến đi");
+      setActiveTab("basic-info");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const payload = formDataToPayload(formData, true);
+      await userTripService.createTrip(payload);
+      toast.success("Đã lưu nháp thành công!");
+      navigate("/my-trips");
+    } catch (error) {
+      console.error("Save draft error:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name || !formData.location || !formData.difficulty) {
       toast.error("Vui lòng điền đầy đủ thông tin cơ bản");
       setActiveTab("basic-info");
       return;
     }
 
-    const trips = JSON.parse(localStorage.getItem("createdTrips") || "[]");
-    const newTrip = {
-      id: `trip-${Date.now()}`,
-      ...formData,
-      status: "approved",
-      createdBy: currentUser?.id,
-      createdByName: currentUser?.name,
-      createdAt: new Date().toISOString(),
-      image: formData.images[0] || "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b",
-      date: formData.departureDate?.toISOString() || new Date().toISOString(),
-      participants: 0,
-      maxParticipants: 20,
-      estimatedPrice: calculateEstimatedPrice(formData.includedCosts),
-    };
-    trips.push(newTrip);
-    localStorage.setItem("createdTrips", JSON.stringify(trips));
-    
-    toast.success("Đã gửi chuyến đi để duyệt!");
-    navigate("/trips");
+    if (!formData.departureDate || !formData.registrationDeadline) {
+      toast.error("Vui lòng chọn ngày khởi hành và hạn đăng ký");
+      setActiveTab("basic-info");
+      return;
+    }
+
+    if (!formData.contactEmail || !formData.contactPhone) {
+      toast.error("Vui lòng nhập thông tin liên hệ");
+      setActiveTab("basic-info");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const payload = formDataToPayload(formData, false);
+      const response = await userTripService.createTrip(payload);
+      toast.success("Đã tạo chuyến đi thành công!");
+      navigate(`/trip/${response.data.id}`);
+    } catch (error) {
+      console.error("Create trip error:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!formData.name || !formData.location || !formData.difficulty) {
       toast.error("Vui lòng điền đầy đủ thông tin cơ bản");
       setActiveTab("basic-info");
       return;
     }
 
-    const trips = JSON.parse(localStorage.getItem("createdTrips") || "[]");
-    const updatedTrips = trips.map((t: { id: string }) =>
-      t.id === editTripId
-        ? {
-            ...t,
-            ...formData,
-            image: formData.images[0] || "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b",
-            date: formData.departureDate?.toISOString() || new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            estimatedPrice: calculateEstimatedPrice(formData.includedCosts),
-          }
-        : t
-    );
-    localStorage.setItem("createdTrips", JSON.stringify(updatedTrips));
-    toast.success("Đã cập nhật chuyến đi!");
-    navigate(`/trip/${editTripId}`);
+    setIsSubmitting(true);
+    try {
+      const payload = formDataToPayload(formData, false);
+      await userTripService.updateTrip(editTripId!, payload);
+      toast.success("Đã cập nhật chuyến đi thành công!");
+      navigate(`/trip/${editTripId}`);
+    } catch (error) {
+      console.error("Update trip error:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCancel = () => {
@@ -230,20 +303,23 @@ const CreateTripSelfOrganize = () => {
           <div className="flex justify-end gap-3 mt-6">
             {isEditMode ? (
               <>
-                <Button variant="outline" onClick={handleCancel}>
+                <Button variant="outline" onClick={handleCancel} disabled={isSubmitting}>
                   Hủy
                 </Button>
-                <Button onClick={handleUpdate}>
+                <Button onClick={handleUpdate} disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Lưu
                 </Button>
               </>
             ) : (
               <>
-                <Button variant="outline" onClick={handleSaveDraft}>
-                  Nháp
+                <Button variant="outline" onClick={handleSaveDraft} disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Lưu nháp
                 </Button>
-                <Button onClick={handleSubmit}>
-                  Gửi duyệt
+                <Button onClick={handleSubmit} disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Tạo chuyến
                 </Button>
               </>
             )}

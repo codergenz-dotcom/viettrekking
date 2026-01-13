@@ -22,17 +22,18 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { adminService, userTripService } from '@/services/api';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { 
-  Mountain, 
-  Calendar, 
-  MapPin, 
-  Users, 
-  Eye, 
-  Check, 
-  X, 
+import {
+  Mountain,
+  Calendar,
+  MapPin,
+  Users,
+  Eye,
+  Check,
+  X,
   Search,
   Clock,
   Phone,
@@ -45,8 +46,9 @@ import {
   FileText,
   Info
 } from 'lucide-react';
+import { SecureImage } from '@/components/ui/SecureImage';
 
-type TripStatus = 'pending' | 'approved' | 'rejected';
+type TripStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed';
 
 interface ScheduleDay {
   day: number;
@@ -94,206 +96,11 @@ const difficultyLabels: Record<string, string> = {
   extreme: 'Cực khó',
 };
 
-const mockPendingTrips: PendingTrip[] = [
-  {
-    id: 'trip-pending-1',
-    name: 'Chinh phục Fansipan 2N1Đ',
-    location: 'Lào Cai',
-    difficulty: 'hard',
-    departureDate: '2026-02-15',
-    endDate: '2026-02-16',
-    estimatedPrice: 2500000,
-    maxParticipants: 15,
-    description: 'Hành trình chinh phục nóc nhà Đông Dương với cung đường trekking cổ điển qua Y Tý. Trải nghiệm ngủ lều trên độ cao 2800m.',
-    organizerId: 'porter-1',
-    organizerName: 'Trần Văn Porter',
-    organizerPhone: '0901234567',
-    organizerEmail: 'porter1@email.com',
-    createdAt: '2026-01-03T10:00:00Z',
-    status: 'pending',
-    images: ['/fansipan.jpg'],
-    meetingPoint: 'Bến xe Mỹ Đình, Hà Nội - 20:00 ngày 14/02',
-    schedule: [
-      {
-        day: 1,
-        title: 'Hà Nội - Trạm Tôn - Đỉnh Fansipan',
-        activities: [
-          '05:00 - Đến Trạm Tôn, ăn sáng',
-          '06:00 - Bắt đầu leo núi',
-          '12:00 - Nghỉ trưa tại độ cao 2800m',
-          '16:00 - Lên đến đỉnh Fansipan',
-          '18:00 - Cắm trại, nấu ăn tối',
-        ],
-      },
-      {
-        day: 2,
-        title: 'Đỉnh Fansipan - Trạm Tôn - Hà Nội',
-        activities: [
-          '05:00 - Ngắm bình minh trên đỉnh',
-          '07:00 - Ăn sáng, dọn trại',
-          '08:00 - Xuống núi',
-          '14:00 - Về đến Trạm Tôn, ăn trưa',
-          '22:00 - Về đến Hà Nội',
-        ],
-      },
-    ],
-    includedServices: [
-      'Xe đưa đón Hà Nội - Trạm Tôn - Hà Nội',
-      'Lều trại, túi ngủ',
-      '3 bữa ăn chính + 2 bữa phụ',
-      'Porter/Guide chuyên nghiệp',
-      'Bảo hiểm du lịch',
-    ],
-    excludedServices: [
-      'Chi phí cá nhân',
-      'Đồ uống ngoài thực đơn',
-      'Tip cho porter (tùy tâm)',
-    ],
-    preparations: [
-      'Giày trekking cao cổ',
-      'Áo khoác giữ nhiệt, áo gió',
-      'Đèn pin đội đầu',
-      'Gậy trekking (nếu có)',
-      'Thuốc cá nhân',
-    ],
-    costs: [
-      { name: 'Xe đưa đón', amount: 500000 },
-      { name: 'Ăn uống', amount: 600000 },
-      { name: 'Lều trại + thiết bị', amount: 400000 },
-      { name: 'Porter/Guide', amount: 800000 },
-      { name: 'Bảo hiểm', amount: 200000 },
-    ],
-    notes: 'Yêu cầu sức khỏe tốt, đã có kinh nghiệm trekking cơ bản. Thời tiết có thể thay đổi, cần chuẩn bị tinh thần cho mọi điều kiện.',
-  },
-  {
-    id: 'trip-pending-2',
-    name: 'Tà Xùa săn mây cuối tuần',
-    location: 'Sơn La',
-    difficulty: 'moderate',
-    departureDate: '2026-01-25',
-    endDate: '2026-01-26',
-    estimatedPrice: 1800000,
-    maxParticipants: 20,
-    description: 'Tour săn mây Tà Xùa 2 ngày 1 đêm, check-in sống lưng khủng long, ngắm bình minh trên biển mây.',
-    organizerId: 'porter-2',
-    organizerName: 'Lê Minh Trekker',
-    organizerPhone: '0912345678',
-    organizerEmail: 'trekker@email.com',
-    createdAt: '2026-01-02T14:30:00Z',
-    status: 'pending',
-    images: ['/ta-xua.png'],
-    meetingPoint: 'Bến xe Mỹ Đình - 21:00 thứ 6',
-    schedule: [
-      {
-        day: 1,
-        title: 'Hà Nội - Tà Xùa',
-        activities: [
-          '21:00 - Xuất phát từ Hà Nội',
-          '04:00 - Đến homestay, nghỉ ngơi',
-          '05:30 - Đi săn mây bình minh',
-          '08:00 - Ăn sáng, check-in sống lưng khủng long',
-          '12:00 - Ăn trưa, nghỉ ngơi',
-          '15:00 - Trekking đỉnh Tà Xùa',
-        ],
-      },
-      {
-        day: 2,
-        title: 'Tà Xùa - Hà Nội',
-        activities: [
-          '05:00 - Săn mây lần 2',
-          '08:00 - Ăn sáng, trả phòng',
-          '10:00 - Về Hà Nội',
-          '17:00 - Về đến Hà Nội',
-        ],
-      },
-    ],
-    includedServices: ['Xe limousine đưa đón', 'Homestay 1 đêm', '2 bữa sáng + 1 trưa + 1 tối', 'Guide địa phương'],
-    excludedServices: ['Chi phí cá nhân', 'Bữa trưa ngày 2'],
-    preparations: ['Áo ấm', 'Giày thể thao', 'Máy ảnh'],
-    notes: 'Phù hợp với mọi đối tượng, không yêu cầu kinh nghiệm trekking.',
-  },
-  {
-    id: 'trip-pending-3',
-    name: 'Lảo Thẩn - Đỉnh núi thiêng',
-    location: 'Lào Cai',
-    difficulty: 'hard',
-    departureDate: '2026-02-20',
-    endDate: '2026-02-21',
-    estimatedPrice: 2200000,
-    maxParticipants: 12,
-    description: 'Khám phá đỉnh Lảo Thẩn cao 2860m, một trong những đỉnh núi đẹp nhất vùng Tây Bắc với cung trekking hoang sơ.',
-    organizerId: 'porter-1',
-    organizerName: 'Trần Văn Porter',
-    organizerPhone: '0901234567',
-    organizerEmail: 'porter1@email.com',
-    createdAt: '2026-01-04T09:15:00Z',
-    status: 'pending',
-    images: ['/lao-than.jpg'],
-    meetingPoint: 'Bến xe Mỹ Đình - 20:00',
-    schedule: [
-      {
-        day: 1,
-        title: 'Di chuyển và leo núi',
-        activities: ['20:00 - Xuất phát', '05:00 - Đến Y Tý', '06:00 - Bắt đầu trekking', '15:00 - Cắm trại'],
-      },
-      {
-        day: 2,
-        title: 'Chinh phục đỉnh và về',
-        activities: ['05:00 - Lên đỉnh ngắm bình minh', '10:00 - Xuống núi', '20:00 - Về Hà Nội'],
-      },
-    ],
-    includedServices: ['Xe đưa đón', 'Lều trại', 'Ăn uống', 'Guide'],
-    excludedServices: ['Chi phí cá nhân'],
-    preparations: ['Giày trekking', 'Áo ấm', 'Đèn pin', 'Gậy trekking'],
-  },
-  {
-    id: 'trip-approved-1',
-    name: 'Núi Bà Đen - Tây Ninh',
-    location: 'Tây Ninh',
-    difficulty: 'easy',
-    departureDate: '2026-01-20',
-    estimatedPrice: 800000,
-    maxParticipants: 30,
-    description: 'Tour leo núi Bà Đen phù hợp cho người mới bắt đầu, có thể đi cáp treo hoặc trekking.',
-    organizerId: 'porter-3',
-    organizerName: 'Nguyễn Hải Mountain',
-    organizerPhone: '0923456789',
-    organizerEmail: 'mountain@email.com',
-    createdAt: '2025-12-28T08:00:00Z',
-    status: 'approved',
-    images: ['/trekking-ba-den-5-600x450.jpg'],
-    includedServices: ['Xe đưa đón', 'Ăn trưa', 'Guide'],
-    preparations: ['Giày thể thao', 'Nước uống'],
-  },
-  {
-    id: 'trip-rejected-1',
-    name: 'Putaleng mùa đông',
-    location: 'Lai Châu',
-    difficulty: 'extreme',
-    departureDate: '2026-01-10',
-    estimatedPrice: 3500000,
-    maxParticipants: 8,
-    description: 'Chinh phục đỉnh Putaleng trong điều kiện thời tiết khắc nghiệt.',
-    organizerId: 'porter-2',
-    organizerName: 'Lê Minh Trekker',
-    organizerPhone: '0912345678',
-    organizerEmail: 'trekker@email.com',
-    createdAt: '2025-12-25T16:00:00Z',
-    status: 'rejected',
-    rejectReason: 'Thời tiết mùa đông quá khắc nghiệt, cần đợi đến mùa xuân để đảm bảo an toàn cho người tham gia.',
-    images: ['/putaleng.png'],
-    schedule: [
-      {
-        day: 1,
-        title: 'Di chuyển',
-        activities: ['20:00 - Xuất phát từ Hà Nội'],
-      },
-    ],
-  },
-];
+
 
 const AdminTrips = () => {
   const [trips, setTrips] = useState<PendingTrip[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedTrip, setSelectedTrip] = useState<PendingTrip | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
@@ -301,51 +108,86 @@ const AdminTrips = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<TripStatus | 'all'>('pending');
 
-  useEffect(() => {
-    loadTrips();
-  }, []);
+  const mapDifficulty = (d: string): string => {
+    const lower = d.toLowerCase();
+    if (lower === 'medium') return 'moderate';
+    return lower;
+  };
 
-  const loadTrips = () => {
+  const fetchTrips = async () => {
+    setIsLoading(true);
     try {
-      const storedTrips = JSON.parse(localStorage.getItem('pendingTrips') || '[]');
-      if (storedTrips.length === 0) {
-        setTrips(mockPendingTrips);
-        localStorage.setItem('pendingTrips', JSON.stringify(mockPendingTrips));
-      } else {
-        setTrips(storedTrips);
-      }
-    } catch {
-      setTrips(mockPendingTrips);
+      const params: any = {
+        page: 0,
+        size: 100,
+        search: searchQuery,
+      };
+
+      if (activeTab === 'pending') params.status = 'PENDING';
+      if (activeTab === 'approved') params.status = 'APPROVED';
+      if (activeTab === 'rejected') params.status = 'REJECTED';
+      if (activeTab === 'cancelled') params.status = 'CANCELLED';
+      if (activeTab === 'completed') params.status = 'COMPLETED';
+
+      const response = await adminService.getTripsForAdmin(params);
+
+      const mapped: PendingTrip[] = response.data.content.map(t => ({
+        id: t.id,
+        name: t.name,
+        location: t.location,
+        difficulty: mapDifficulty(t.difficulty),
+        departureDate: t.departureDate,
+        estimatedPrice: 0,
+        maxParticipants: t.expectedPorterCount || 0,
+        description: t.description,
+        organizerId: t.creator?.id || t.porter?.id || '',
+        organizerName: t.creator?.fullName || t.porter?.fullName || 'N/A',
+        organizerPhone: t.contactPhone || '',
+        organizerEmail: t.contactEmail || t.creator?.email || '',
+        createdAt: t.createdAt,
+        status: activeTab !== 'all' ? activeTab : (t.isDraft ? 'pending' : 'approved'),
+        images: t.images,
+      }));
+      setTrips(mapped);
+    } catch (error) {
+      console.error('Error fetching trips:', error);
+      toast.error('Không thể tải danh sách chuyến đi');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleApprove = (trip: PendingTrip) => {
-    const updatedTrips = trips.map((t) =>
-      t.id === trip.id ? { ...t, status: 'approved' as TripStatus } : t
-    );
-    localStorage.setItem('pendingTrips', JSON.stringify(updatedTrips));
-    setTrips(updatedTrips);
-    toast.success(`Đã duyệt chuyến đi "${trip.name}"`);
-    setIsDetailOpen(false);
+  useEffect(() => {
+    fetchTrips();
+  }, [activeTab]);
+
+  const handleApprove = async (trip: PendingTrip) => {
+    try {
+      await adminService.approveTrip(trip.id);
+      toast.success(`Đã duyệt chuyến đi "${trip.name}"`);
+      setIsDetailOpen(false);
+      fetchTrips();
+    } catch (error) {
+      console.error('Approve trip error:', error);
+    }
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!selectedTrip || !rejectReason.trim()) {
       toast.error('Vui lòng nhập lý do từ chối');
       return;
     }
 
-    const updatedTrips = trips.map((t) =>
-      t.id === selectedTrip.id
-        ? { ...t, status: 'rejected' as TripStatus, rejectReason }
-        : t
-    );
-    localStorage.setItem('pendingTrips', JSON.stringify(updatedTrips));
-    setTrips(updatedTrips);
-    toast.success(`Đã từ chối chuyến đi "${selectedTrip.name}"`);
-    setIsRejectOpen(false);
-    setIsDetailOpen(false);
-    setRejectReason('');
+    try {
+      await adminService.rejectTrip(selectedTrip.id, { reason: rejectReason });
+      toast.success(`Đã từ chối chuyến đi "${selectedTrip.name}"`);
+      setIsRejectOpen(false);
+      setIsDetailOpen(false);
+      setRejectReason('');
+      fetchTrips();
+    } catch (error) {
+      console.error('Reject trip error:', error);
+    }
   };
 
   const openRejectModal = (trip: PendingTrip) => {
@@ -353,9 +195,38 @@ const AdminTrips = () => {
     setIsRejectOpen(true);
   };
 
-  const openDetailModal = (trip: PendingTrip) => {
+  const openDetailModal = async (trip: PendingTrip) => {
     setSelectedTrip(trip);
     setIsDetailOpen(true);
+
+    try {
+      const response = await userTripService.getTripById(trip.id);
+      const fullTrip = response.data;
+
+      setSelectedTrip(prev => {
+        if (!prev || prev.id !== trip.id) return prev;
+
+        return {
+          ...prev,
+          meetingPoint: fullTrip.location,
+          notes: fullTrip.costNotes,
+          schedule: fullTrip.schedule?.map(s => ({
+            day: 1,
+            title: s.time,
+            activities: [s.content]
+          })),
+          costs: (fullTrip.includedCosts || []).map(c => ({
+            name: c.content,
+            amount: parseInt(c.cost) || 0
+          })),
+          includedServices: (fullTrip.includedCosts || []).map(c => c.content),
+          preparations: fullTrip.preparations,
+          estimatedPrice: (fullTrip.includedCosts || []).reduce((sum, c) => sum + (parseInt(c.cost) || 0), 0)
+        };
+      });
+    } catch (error) {
+      console.error('Error fetching full trip details:', error);
+    }
   };
 
   const filteredTrips = trips.filter((trip) => {
@@ -380,6 +251,10 @@ const AdminTrips = () => {
         return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">Đã duyệt</Badge>;
       case 'rejected':
         return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20">Từ chối</Badge>;
+      case 'cancelled':
+        return <Badge variant="outline" className="bg-gray-500/10 text-gray-600 border-gray-500/20">Đã hủy</Badge>;
+      case 'completed':
+        return <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">Hoàn thành</Badge>;
     }
   };
 
@@ -449,6 +324,7 @@ const AdminTrips = () => {
           </Card>
         </div>
 
+
         {/* Main Content */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
@@ -465,15 +341,22 @@ const AdminTrips = () => {
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-              <TabsList>
-                <TabsTrigger value="all">Tất cả ({trips.length})</TabsTrigger>
-                <TabsTrigger value="pending">Chờ duyệt ({pendingCount})</TabsTrigger>
-                <TabsTrigger value="approved">Đã duyệt ({approvedCount})</TabsTrigger>
-                <TabsTrigger value="rejected">Từ chối ({rejectedCount})</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-6 h-auto">
+                <TabsTrigger value="all">Tất cả</TabsTrigger>
+                <TabsTrigger value="pending">Chờ duyệt</TabsTrigger>
+                <TabsTrigger value="approved">Đã duyệt</TabsTrigger>
+                <TabsTrigger value="rejected">Từ chối</TabsTrigger>
+                <TabsTrigger value="cancelled">Đã hủy</TabsTrigger>
+                <TabsTrigger value="completed">Hoàn thành</TabsTrigger>
               </TabsList>
 
               <TabsContent value={activeTab} className="mt-4">
-                {filteredTrips.length === 0 ? (
+                {isLoading ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <Mountain className="h-12 w-12 text-primary animate-pulse mb-4" />
+                    <p className="text-muted-foreground">Đang tải danh sách chuyến đi...</p>
+                  </div>
+                ) : filteredTrips.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <Mountain className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>Không có chuyến đi nào</p>
@@ -610,270 +493,270 @@ const AdminTrips = () => {
                 <div className="h-[400px] overflow-y-auto mt-4">
                   {/* Tab: Thông tin cơ bản */}
                   <TabsContent value="info" className="space-y-4 mt-0">
-                  {selectedTrip.images && selectedTrip.images.length > 0 && (
-                    <div className="aspect-video rounded-lg overflow-hidden bg-muted">
-                      <img
-                        src={selectedTrip.images[0]}
-                        alt={selectedTrip.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Địa điểm</p>
-                      <p className="font-medium flex items-center gap-1.5">
-                        <MapPin className="h-4 w-4 text-primary" />
-                        {selectedTrip.location}
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Độ khó</p>
-                      <p className="font-medium">
-                        {difficultyLabels[selectedTrip.difficulty] || selectedTrip.difficulty}
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Ngày khởi hành</p>
-                      <p className="font-medium flex items-center gap-1.5">
-                        <Calendar className="h-4 w-4 text-primary" />
-                        {selectedTrip.departureDate
-                          ? format(new Date(selectedTrip.departureDate), 'dd/MM/yyyy', { locale: vi })
-                          : 'Chưa xác định'}
-                        {selectedTrip.endDate && (
-                          <span className="text-muted-foreground">
-                            - {format(new Date(selectedTrip.endDate), 'dd/MM/yyyy', { locale: vi })}
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Số người tối đa</p>
-                      <p className="font-medium flex items-center gap-1.5">
-                        <Users className="h-4 w-4 text-primary" />
-                        {selectedTrip.maxParticipants || 'Không giới hạn'}
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Giá ước tính</p>
-                      <p className="font-medium text-primary text-lg">
-                        {selectedTrip.estimatedPrice?.toLocaleString('vi-VN')}đ
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Ngày tạo</p>
-                      <p className="font-medium">
-                        {format(new Date(selectedTrip.createdAt), 'dd/MM/yyyy HH:mm', { locale: vi })}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Organizer Info */}
-                  <div className="p-4 rounded-lg bg-muted/50 border">
-                    <p className="text-sm font-medium mb-3">Thông tin người tổ chức</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                        <span>{selectedTrip.organizerName || 'N/A'}</span>
+                    {selectedTrip.images && selectedTrip.images.length > 0 && (
+                      <div className="aspect-video rounded-lg overflow-hidden bg-muted">
+                        <SecureImage
+                          src={selectedTrip.images[0]}
+                          alt={selectedTrip.name}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
-                      {selectedTrip.organizerPhone && (
+                    )}
+
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Địa điểm</p>
+                        <p className="font-medium flex items-center gap-1.5">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          {selectedTrip.location}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Độ khó</p>
+                        <p className="font-medium">
+                          {difficultyLabels[selectedTrip.difficulty] || selectedTrip.difficulty}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Ngày khởi hành</p>
+                        <p className="font-medium flex items-center gap-1.5">
+                          <Calendar className="h-4 w-4 text-primary" />
+                          {selectedTrip.departureDate
+                            ? format(new Date(selectedTrip.departureDate), 'dd/MM/yyyy', { locale: vi })
+                            : 'Chưa xác định'}
+                          {selectedTrip.endDate && (
+                            <span className="text-muted-foreground">
+                              - {format(new Date(selectedTrip.endDate), 'dd/MM/yyyy', { locale: vi })}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Số người tối đa</p>
+                        <p className="font-medium flex items-center gap-1.5">
+                          <Users className="h-4 w-4 text-primary" />
+                          {selectedTrip.maxParticipants || 'Không giới hạn'}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Giá ước tính</p>
+                        <p className="font-medium text-primary text-lg">
+                          {selectedTrip.estimatedPrice?.toLocaleString('vi-VN')}đ
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Ngày tạo</p>
+                        <p className="font-medium">
+                          {format(new Date(selectedTrip.createdAt), 'dd/MM/yyyy HH:mm', { locale: vi })}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Organizer Info */}
+                    <div className="p-4 rounded-lg bg-muted/50 border">
+                      <p className="text-sm font-medium mb-3">Thông tin người tổ chức</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4 text-muted-foreground" />
-                          <span>{selectedTrip.organizerPhone}</span>
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <span>{selectedTrip.organizerName || 'N/A'}</span>
                         </div>
-                      )}
-                      {selectedTrip.organizerEmail && (
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
-                          <span>{selectedTrip.organizerEmail}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {selectedTrip.meetingPoint && (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                        <MapPin className="h-4 w-4" />
-                        Điểm tập trung
-                      </p>
-                      <p className="text-sm p-3 rounded-lg bg-muted/50">{selectedTrip.meetingPoint}</p>
-                    </div>
-                  )}
-
-                  {selectedTrip.description && (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                        <FileText className="h-4 w-4" />
-                        Mô tả
-                      </p>
-                      <p className="text-sm p-3 rounded-lg bg-muted/50">{selectedTrip.description}</p>
-                    </div>
-                  )}
-
-                  {selectedTrip.notes && (
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                        <Info className="h-4 w-4" />
-                        Ghi chú
-                      </p>
-                      <p className="text-sm p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
-                        {selectedTrip.notes}
-                      </p>
-                    </div>
-                  )}
-
-                  {selectedTrip.status === 'rejected' && selectedTrip.rejectReason && (
-                    <div className="p-3 rounded-lg bg-red-50 border border-red-200">
-                      <p className="text-sm font-medium text-red-800">Lý do từ chối:</p>
-                      <p className="text-sm text-red-700 mt-1">{selectedTrip.rejectReason}</p>
-                    </div>
-                  )}
-                </TabsContent>
-
-                {/* Tab: Lịch trình */}
-                <TabsContent value="schedule" className="space-y-4 mt-0">
-                  {selectedTrip.schedule && selectedTrip.schedule.length > 0 ? (
-                    <div className="space-y-4">
-                      {selectedTrip.schedule.map((day, index) => (
-                        <div key={index} className="p-4 rounded-lg border bg-card">
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                              <span className="text-sm font-bold text-primary">{day.day}</span>
-                            </div>
-                            <h4 className="font-medium">{day.title}</h4>
+                        {selectedTrip.organizerPhone && (
+                          <div className="flex items-center gap-2">
+                            <Phone className="h-4 w-4 text-muted-foreground" />
+                            <span>{selectedTrip.organizerPhone}</span>
                           </div>
-                          <ul className="space-y-2 ml-10">
-                            {day.activities.map((activity, actIndex) => (
-                              <li key={actIndex} className="text-sm text-muted-foreground flex items-start gap-2">
-                                <span className="text-primary mt-1">•</span>
-                                {activity}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <ClipboardList className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>Chưa có lịch trình chi tiết</p>
-                    </div>
-                  )}
-                </TabsContent>
-
-                {/* Tab: Dịch vụ */}
-                <TabsContent value="services" className="space-y-4 mt-0">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Included Services */}
-                    <div className="p-4 rounded-lg border bg-green-50/50">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Package className="h-5 w-5 text-green-600" />
-                        <h4 className="font-medium text-green-800">Dịch vụ bao gồm</h4>
+                        )}
+                        {selectedTrip.organizerEmail && (
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                            <span>{selectedTrip.organizerEmail}</span>
+                          </div>
+                        )}
                       </div>
-                      {selectedTrip.includedServices && selectedTrip.includedServices.length > 0 ? (
-                        <ul className="space-y-2">
-                          {selectedTrip.includedServices.map((service, index) => (
-                            <li key={index} className="text-sm flex items-start gap-2">
-                              <Check className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
-                              {service}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">Chưa có thông tin</p>
-                      )}
                     </div>
 
-                    {/* Excluded Services */}
-                    <div className="p-4 rounded-lg border bg-red-50/50">
-                      <div className="flex items-center gap-2 mb-3">
-                        <PackageX className="h-5 w-5 text-red-600" />
-                        <h4 className="font-medium text-red-800">Không bao gồm</h4>
+                    {selectedTrip.meetingPoint && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                          <MapPin className="h-4 w-4" />
+                          Điểm tập trung
+                        </p>
+                        <p className="text-sm p-3 rounded-lg bg-muted/50">{selectedTrip.meetingPoint}</p>
                       </div>
-                      {selectedTrip.excludedServices && selectedTrip.excludedServices.length > 0 ? (
-                        <ul className="space-y-2">
-                          {selectedTrip.excludedServices.map((service, index) => (
-                            <li key={index} className="text-sm flex items-start gap-2">
-                              <X className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
-                              {service}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">Chưa có thông tin</p>
-                      )}
-                    </div>
-                  </div>
+                    )}
 
-                  {/* Preparations */}
-                  <div className="p-4 rounded-lg border">
-                    <div className="flex items-center gap-2 mb-3">
-                      <ListChecks className="h-5 w-5 text-primary" />
-                      <h4 className="font-medium">Cần chuẩn bị</h4>
-                    </div>
-                    {selectedTrip.preparations && selectedTrip.preparations.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {selectedTrip.preparations.map((item, index) => (
-                          <Badge key={index} variant="secondary">
-                            {item}
-                          </Badge>
+                    {selectedTrip.description && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                          <FileText className="h-4 w-4" />
+                          Mô tả
+                        </p>
+                        <p className="text-sm p-3 rounded-lg bg-muted/50">{selectedTrip.description}</p>
+                      </div>
+                    )}
+
+                    {selectedTrip.notes && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                          <Info className="h-4 w-4" />
+                          Ghi chú
+                        </p>
+                        <p className="text-sm p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
+                          {selectedTrip.notes}
+                        </p>
+                      </div>
+                    )}
+
+                    {selectedTrip.status === 'rejected' && selectedTrip.rejectReason && (
+                      <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+                        <p className="text-sm font-medium text-red-800">Lý do từ chối:</p>
+                        <p className="text-sm text-red-700 mt-1">{selectedTrip.rejectReason}</p>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* Tab: Lịch trình */}
+                  <TabsContent value="schedule" className="space-y-4 mt-0">
+                    {selectedTrip.schedule && selectedTrip.schedule.length > 0 ? (
+                      <div className="space-y-4">
+                        {selectedTrip.schedule.map((day, index) => (
+                          <div key={index} className="p-4 rounded-lg border bg-card">
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <span className="text-sm font-bold text-primary">{day.day}</span>
+                              </div>
+                              <h4 className="font-medium">{day.title}</h4>
+                            </div>
+                            <ul className="space-y-2 ml-10">
+                              {day.activities.map((activity, actIndex) => (
+                                <li key={actIndex} className="text-sm text-muted-foreground flex items-start gap-2">
+                                  <span className="text-primary mt-1">•</span>
+                                  {activity}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">Chưa có thông tin</p>
-                    )}
-                  </div>
-                </TabsContent>
-
-                {/* Tab: Chi phí */}
-                <TabsContent value="costs" className="space-y-4 mt-0">
-                  {selectedTrip.costs && selectedTrip.costs.length > 0 ? (
-                    <>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Hạng mục</TableHead>
-                            <TableHead className="text-right">Số tiền</TableHead>
-                            <TableHead>Ghi chú</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {selectedTrip.costs.map((cost, index) => (
-                            <TableRow key={index}>
-                              <TableCell className="font-medium">{cost.name}</TableCell>
-                              <TableCell className="text-right">
-                                {cost.amount.toLocaleString('vi-VN')}đ
-                              </TableCell>
-                              <TableCell className="text-muted-foreground">
-                                {cost.note || '-'}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                          <TableRow className="bg-muted/50">
-                            <TableCell className="font-bold">Tổng cộng</TableCell>
-                            <TableCell className="text-right font-bold text-primary">
-                              {selectedTrip.costs.reduce((sum, c) => sum + c.amount, 0).toLocaleString('vi-VN')}đ
-                            </TableCell>
-                            <TableCell></TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
-                      <div className="text-sm text-muted-foreground p-3 rounded-lg bg-muted/50">
-                        <strong>Giá niêm yết:</strong> {selectedTrip.estimatedPrice?.toLocaleString('vi-VN')}đ/người
+                      <div className="text-center py-8 text-muted-foreground">
+                        <ClipboardList className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>Chưa có lịch trình chi tiết</p>
                       </div>
-                    </>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <DollarSign className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>Chưa có bảng chi phí chi tiết</p>
-                      <p className="text-lg font-medium text-primary mt-2">
-                        Giá ước tính: {selectedTrip.estimatedPrice?.toLocaleString('vi-VN')}đ
-                      </p>
+                    )}
+                  </TabsContent>
+
+                  {/* Tab: Dịch vụ */}
+                  <TabsContent value="services" className="space-y-4 mt-0">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Included Services */}
+                      <div className="p-4 rounded-lg border bg-green-50/50">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Package className="h-5 w-5 text-green-600" />
+                          <h4 className="font-medium text-green-800">Dịch vụ bao gồm</h4>
+                        </div>
+                        {selectedTrip.includedServices && selectedTrip.includedServices.length > 0 ? (
+                          <ul className="space-y-2">
+                            {selectedTrip.includedServices.map((service, index) => (
+                              <li key={index} className="text-sm flex items-start gap-2">
+                                <Check className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                                {service}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Chưa có thông tin</p>
+                        )}
+                      </div>
+
+                      {/* Excluded Services */}
+                      <div className="p-4 rounded-lg border bg-red-50/50">
+                        <div className="flex items-center gap-2 mb-3">
+                          <PackageX className="h-5 w-5 text-red-600" />
+                          <h4 className="font-medium text-red-800">Không bao gồm</h4>
+                        </div>
+                        {selectedTrip.excludedServices && selectedTrip.excludedServices.length > 0 ? (
+                          <ul className="space-y-2">
+                            {selectedTrip.excludedServices.map((service, index) => (
+                              <li key={index} className="text-sm flex items-start gap-2">
+                                <X className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                                {service}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Chưa có thông tin</p>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </TabsContent>
+
+                    {/* Preparations */}
+                    <div className="p-4 rounded-lg border">
+                      <div className="flex items-center gap-2 mb-3">
+                        <ListChecks className="h-5 w-5 text-primary" />
+                        <h4 className="font-medium">Cần chuẩn bị</h4>
+                      </div>
+                      {selectedTrip.preparations && selectedTrip.preparations.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedTrip.preparations.map((item, index) => (
+                            <Badge key={index} variant="secondary">
+                              {item}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Chưa có thông tin</p>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  {/* Tab: Chi phí */}
+                  <TabsContent value="costs" className="space-y-4 mt-0">
+                    {selectedTrip.costs && selectedTrip.costs.length > 0 ? (
+                      <>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Hạng mục</TableHead>
+                              <TableHead className="text-right">Số tiền</TableHead>
+                              <TableHead>Ghi chú</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {selectedTrip.costs.map((cost, index) => (
+                              <TableRow key={index}>
+                                <TableCell className="font-medium">{cost.name}</TableCell>
+                                <TableCell className="text-right">
+                                  {cost.amount.toLocaleString('vi-VN')}đ
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {cost.note || '-'}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            <TableRow className="bg-muted/50">
+                              <TableCell className="font-bold">Tổng cộng</TableCell>
+                              <TableCell className="text-right font-bold text-primary">
+                                {selectedTrip.costs.reduce((sum, c) => sum + c.amount, 0).toLocaleString('vi-VN')}đ
+                              </TableCell>
+                              <TableCell></TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                        <div className="text-sm text-muted-foreground p-3 rounded-lg bg-muted/50">
+                          <strong>Giá niêm yết:</strong> {selectedTrip.estimatedPrice?.toLocaleString('vi-VN')}đ/người
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <DollarSign className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>Chưa có bảng chi phí chi tiết</p>
+                        <p className="text-lg font-medium text-primary mt-2">
+                          Giá ước tính: {selectedTrip.estimatedPrice?.toLocaleString('vi-VN')}đ
+                        </p>
+                      </div>
+                    )}
+                  </TabsContent>
                 </div>
               </Tabs>
 

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { User, Mail, Phone, MapPin, Calendar, Camera, Edit2, Save, Award, CheckCircle, Clock, XCircle, Facebook, Instagram, Link2, Lock } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Camera, Edit2, Save, Award, CheckCircle, Clock, XCircle, Facebook, Instagram, Link2, Lock, Loader2, HardDrive, Shield } from 'lucide-react';
+import { userService, imageService, userTripService, type AccountResponse, type UpdateProfileRequest, type ApplyStatusResponse } from '@/services/api';
+import { useSecureImage } from '@/hooks/useSecureImage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,83 +10,156 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { usePorter } from '@/contexts/PorterContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { RegisterPorterDialog } from '@/components/profile/RegisterPorterDialog';
 
 const Profile = () => {
-  const { porterStatus, registerAsPorter } = usePorter();
   const { currentUser } = useAuth();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isPorter, setIsPorter] = useState(false);
   const [profile, setProfile] = useState({
-    name: '',
     displayName: '',
+    name: '',
     email: '',
     phone: '',
     facebook: '',
     instagram: '',
+    driveLink: '',
     location: '',
     bio: '',
-    joinDate: '01/2024',
-    avatar: '',
-    driveLink: '',
+    joinDate: '',
+    tripsJoined: 0,
+    tripsCreated: 0,
   });
+  const [avatarUrl, setAvatarUrl] = useState('');
+  // Use secure image hook to properly fetch avatar with auth
+  const secureAvatarUrl = useSecureImage(avatarUrl);
+
+  const [porterApplication, setPorterApplication] = useState<ApplyStatusResponse | null>(null);
+  const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
+
+  const fetchProfile = async () => {
+    setIsLoading(true);
+    try {
+      const response = await userService.getCurrentProfile();
+      const data = response.data;
+
+      const uid = localStorage.getItem('firebase_uid') || '';
+      const savedRole = localStorage.getItem(`userRole_${uid}`);
+      const isPorterRole = data.role === 'PORTER' || data.isPorter || savedRole === 'porter';
+      setIsPorter(!!isPorterRole);
+
+      setProfile({
+        displayName: data.displayName || '',
+        name: data.fullName || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        facebook: data.facebookUrl || '',
+        instagram: data.instagramUrl || '',
+        driveLink: data.driveLink || '',
+        location: data.location || '',
+        bio: data.bio || '',
+        joinDate: data.createdAt ? new Date(data.createdAt).toLocaleDateString('vi-VN', { month: '2-digit', year: 'numeric' }) : '',
+        tripsJoined: data.tripsJoined || 0,
+        tripsCreated: data.tripsCreated || 0,
+      });
+      setAvatarUrl(data.avatar || '');
+    } catch (error) {
+      console.error('Failed to fetch profile:', error);
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể tải thông tin hồ sơ.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchPorterApplication = async () => {
+    try {
+      const response = await userTripService.getMyPorterApplication();
+      if (response.data) {
+        setPorterApplication(response.data);
+      }
+    } catch (error) {
+      console.log("No porter application found or error fetching");
+    }
+  };
 
   useEffect(() => {
     if (currentUser) {
-      const uid = currentUser.id || localStorage.getItem('firebase_uid') || '';
-      const savedProfile = localStorage.getItem(`userProfile_${uid}`);
-
-      if (savedProfile) {
-        const parsed = JSON.parse(savedProfile);
-        setProfile(prev => ({
-          ...prev,
-          name: parsed.name || currentUser.name || '',
-          displayName: parsed.displayName || '',
-          email: parsed.email || currentUser.email || '',
-          phone: parsed.phone || '',
-          facebook: parsed.facebook || '',
-          instagram: parsed.instagram || '',
-          location: parsed.location || '',
-          bio: parsed.bio || '',
-          avatar: parsed.avatar || currentUser.avatar || '',
-          driveLink: parsed.driveLink || '',
-        }));
-      } else {
-        setProfile(prev => ({
-          ...prev,
-          name: currentUser.name || '',
-          email: currentUser.email || '',
-          avatar: currentUser.avatar || '',
-        }));
-      }
+      fetchProfile();
+      fetchPorterApplication();
     }
   }, [currentUser]);
 
   const stats = [
-    { label: 'Chuyến đi', value: 12 },
-    { label: 'Km đã đi', value: '234' },
-    { label: 'Đỉnh núi', value: 5 },
+    { label: 'Chuyến đi', value: profile.tripsJoined },
+    { label: 'Đã tạo', value: profile.tripsCreated },
+    { label: 'Đỉnh núi', value: Math.floor(profile.tripsJoined / 3) },
   ];
 
-  const handleSave = () => {
-    const uid = currentUser?.id || localStorage.getItem('firebase_uid') || '';
-    localStorage.setItem(`userProfile_${uid}`, JSON.stringify(profile));
-    toast({
-      title: "Đã lưu!",
-      description: "Thông tin hồ sơ đã được cập nhật.",
-    });
-    setIsEditing(false);
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const response = await imageService.uploadImage(file);
+      const imageUrl = imageService.getImageUrl(response.data.id);
+      setAvatarUrl(imageUrl);
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật ảnh đại diện",
+      });
+    } catch (error) {
+      console.error("Avatar upload failed:", error);
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể tải ảnh lên.",
+      });
+    }
   };
 
-  const handleRegisterPorter = () => {
-    registerAsPorter();
-    toast({
-      title: "Đã gửi yêu cầu!",
-      description: "Yêu cầu đăng ký Porter của bạn đang chờ Admin duyệt.",
-    });
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const payload: UpdateProfileRequest = {
+        displayName: profile.displayName,
+        fullName: profile.name,
+        phone: profile.phone,
+        bio: profile.bio,
+        location: profile.location,
+        facebookUrl: profile.facebook,
+        instagramUrl: profile.instagram,
+        driveLink: profile.driveLink,
+      };
+
+      await userService.updateProfile(payload);
+
+      toast({
+        title: "Đã lưu!",
+        description: "Thông tin hồ sơ đã được cập nhật.",
+      });
+      setIsEditing(false);
+      fetchProfile();
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Không thể cập nhật thông tin hồ sơ.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
+
 
   return (
     <div className="container max-w-4xl py-8 space-y-6">
@@ -94,7 +169,7 @@ const Profile = () => {
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
             <div className="relative">
               <Avatar className="h-24 w-24 border-4 border-primary/20 shadow-lg">
-                <AvatarImage src={profile.avatar || "/placeholder.svg"} alt={profile.name} />
+                <AvatarImage src={secureAvatarUrl !== '/placeholder.svg' ? secureAvatarUrl : undefined} alt={profile.name} />
                 <AvatarFallback className="text-2xl bg-primary/10 text-primary">
                   {profile.name ? profile.name.split(' ').map(n => n[0]).join('') : 'U'}
                 </AvatarFallback>
@@ -104,34 +179,38 @@ const Profile = () => {
                   size="icon"
                   variant="secondary"
                   className="absolute bottom-0 right-0 h-8 w-8 rounded-full shadow"
+                  onClick={() => document.getElementById('avatar-upload')?.click()}
                 >
                   <Camera className="h-4 w-4" />
                 </Button>
               )}
+              <input
+                id="avatar-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl font-bold">{profile.displayName || profile.name}</h1>
-                {porterStatus === 'approved' && (
-                  <Badge className="bg-primary text-primary-foreground">
-                    <Award className="h-3 w-3 mr-1" />
-                    Porter
+                <h1 className="text-2xl font-bold">{profile.name}</h1>
+                <Badge variant={isPorter ? "default" : "secondary"}>
+                  {isPorter ? "Người hỗ trợ" : "Thành viên"}
+                </Badge>
+
+                {/* Porter Application Status Badges */}
+                {!isPorter && porterApplication?.status === 'PENDING' && (
+                  <Badge variant="outline" className="text-yellow-600 border-yellow-600 bg-yellow-50">
+                    <Clock className="w-3 h-3 mr-1" />
+                    Đang chờ duyệt Porter
                   </Badge>
                 )}
-                {porterStatus === 'pending' && (
-                  <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-                    <Clock className="h-3 w-3 mr-1" />
-                    Chờ duyệt Porter
-                  </Badge>
-                )}
-                {porterStatus === 'rejected' && (
+                {!isPorter && porterApplication?.status === 'REJECTED' && (
                   <Badge variant="destructive">
-                    <XCircle className="h-3 w-3 mr-1" />
-                    Bị từ chối
+                    <XCircle className="w-3 h-3 mr-1" />
+                    Bị từ chối Porter
                   </Badge>
-                )}
-                {porterStatus === 'none' && (
-                  <Badge variant="secondary">Thành viên</Badge>
                 )}
               </div>
               <p className="text-muted-foreground flex items-center gap-1 mt-1">
@@ -139,23 +218,37 @@ const Profile = () => {
                 {profile.location}
               </p>
             </div>
-            <Button
-              variant={isEditing ? "default" : "outline"}
-              onClick={isEditing ? handleSave : () => setIsEditing(true)}
-              className="shrink-0"
-            >
-              {isEditing ? (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Lưu thay đổi
-                </>
-              ) : (
-                <>
-                  <Edit2 className="h-4 w-4 mr-2" />
-                  Chỉnh sửa
-                </>
+            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+              {/* Register as Porter Button */}
+              {!isPorter && (!porterApplication || porterApplication.status === 'REJECTED') && (
+                <Button
+                  variant="outline"
+                  className="gap-2 border-primary text-primary hover:bg-primary/5"
+                  onClick={() => setIsRegisterDialogOpen(true)}
+                >
+                  <Shield className="h-4 w-4" />
+                  Đăng ký làm Người hỗ trợ
+                </Button>
               )}
-            </Button>
+
+              <Button
+                variant={isEditing ? "default" : "outline"}
+                onClick={isEditing ? handleSave : () => setIsEditing(true)}
+                disabled={isSaving}
+              >
+                {isEditing ? (
+                  <>
+                    {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                    Lưu thay đổi
+                  </>
+                ) : (
+                  <>
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    Chỉnh sửa
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* Stats */}
@@ -178,6 +271,23 @@ const Profile = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="displayName">Tên hiển thị</Label>
+              {isEditing ? (
+                <Input
+                  id="displayName"
+                  value={profile.displayName}
+                  onChange={(e) => setProfile({ ...profile, displayName: e.target.value })}
+                  placeholder="Tên bạn muốn hiển thị cho người khác"
+                />
+              ) : (
+                <div className="flex items-center gap-2 text-sm">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  {profile.displayName || <span className="text-muted-foreground italic">Chưa cập nhật</span>}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="name">Họ và tên</Label>
               {isEditing ? (
                 <Input
@@ -194,37 +304,12 @@ const Profile = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="displayName">Tên gọi</Label>
-              {isEditing ? (
-                <Input
-                  id="displayName"
-                  value={profile.displayName}
-                  onChange={(e) => setProfile({ ...profile, displayName: e.target.value })}
-                  placeholder="Tên bạn muốn hiển thị"
-                />
-              ) : (
-                <div className="flex items-center gap-2 text-sm">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  {profile.displayName || <span className="text-muted-foreground italic">Chưa đặt</span>}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              {isEditing ? (
-                <Input
-                  id="email"
-                  type="email"
-                  value={profile.email}
-                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                />
-              ) : (
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  {profile.email}
-                </div>
-              )}
+              <div className="flex items-center gap-2 text-sm">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                {profile.email}
+              </div>
+              <p className="text-[10px] text-muted-foreground">Email không thể thay đổi</p>
             </div>
 
             <div className="space-y-2">
@@ -246,6 +331,7 @@ const Profile = () => {
                   {profile.phone || <span className="text-muted-foreground italic">Chưa cập nhật</span>}
                 </div>
               )}
+              <p className="text-xs text-muted-foreground">Chỉ admin và người tổ chức mới thấy thông tin này</p>
             </div>
 
             <div className="space-y-2">
@@ -315,6 +401,32 @@ const Profile = () => {
                   </div>
                 )}
               </div>
+
+              {/* Google Drive Link - chỉ hiển thị cho porter */}
+              {isPorter && (
+                <div className="space-y-2">
+                  <Label htmlFor="driveLink" className="text-xs text-muted-foreground font-normal">Google Drive</Label>
+                  {isEditing ? (
+                    <Input
+                      id="driveLink"
+                      value={profile.driveLink}
+                      onChange={(e) => setProfile({ ...profile, driveLink: e.target.value })}
+                      placeholder="https://drive.google.com/..."
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm">
+                      <HardDrive className="h-4 w-4 text-muted-foreground" />
+                      {profile.driveLink ? (
+                        <a href={profile.driveLink} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate max-w-[200px]">
+                          {profile.driveLink.replace(/https?:\/\/(www\.)?drive\.google\.com\/?/, 'drive.google.com/')}
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground italic">Chưa cập nhật</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -342,114 +454,23 @@ const Profile = () => {
 
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="h-4 w-4" />
-              Tham gia từ tháng {profile.joinDate}
+              Tham gia từ {profile.joinDate}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Porter Registration */}
-      {porterStatus === 'none' && (
-        <Card className="border-dashed border-2 border-primary/30 bg-primary/5">
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <div className="p-3 rounded-full bg-primary/10">
-                <Award className="h-8 w-8 text-primary" />
-              </div>
-              <div className="flex-1 text-center sm:text-left">
-                <h3 className="font-semibold text-lg">Trở thành Porter</h3>
-                <p className="text-sm text-muted-foreground">
-                  Đăng ký làm Porter để có thể tạo và tổ chức các chuyến đi leo núi của riêng bạn.
-                </p>
-              </div>
-              <Button onClick={handleRegisterPorter} className="gap-2">
-                <CheckCircle className="h-4 w-4" />
-                Đăng ký Porter
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <RegisterPorterDialog
+        open={isRegisterDialogOpen}
+        onOpenChange={setIsRegisterDialogOpen}
+        onSuccess={fetchPorterApplication}
+        currentPhone={profile.phone}
+      />
 
-      {/* Pending Status */}
-      {porterStatus === 'pending' && (
-        <Card className="border-dashed border-2 border-yellow-300 bg-yellow-50 dark:bg-yellow-900/10 dark:border-yellow-700">
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <div className="p-3 rounded-full bg-yellow-100 dark:bg-yellow-900/30">
-                <Clock className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
-              </div>
-              <div className="flex-1 text-center sm:text-left">
-                <h3 className="font-semibold text-lg">Đang chờ duyệt</h3>
-                <p className="text-sm text-muted-foreground">
-                  Yêu cầu đăng ký Porter của bạn đang được Admin xem xét. Vui lòng chờ trong giây lát.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Rejected Status */}
-      {porterStatus === 'rejected' && (
-        <Card className="border-dashed border-2 border-destructive/30 bg-destructive/5">
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <div className="p-3 rounded-full bg-destructive/10">
-                <XCircle className="h-8 w-8 text-destructive" />
-              </div>
-              <div className="flex-1 text-center sm:text-left">
-                <h3 className="font-semibold text-lg">Yêu cầu bị từ chối</h3>
-                <p className="text-sm text-muted-foreground">
-                  Yêu cầu đăng ký Porter của bạn đã bị từ chối. Vui lòng liên hệ Admin để biết thêm chi tiết.
-                </p>
-              </div>
-              <Button onClick={handleRegisterPorter} variant="outline" className="gap-2">
-                <CheckCircle className="h-4 w-4" />
-                Đăng ký lại
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Porter Credentials - Only for approved porters */}
-      {porterStatus === 'approved' && (
-        <Card className="border-orange-200 dark:border-orange-900 bg-orange-50/50 dark:bg-orange-950/10">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Link2 className="h-5 w-5 text-orange-600" />
-              Tài liệu Porter
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Link Google Drive chứa các tài liệu chứng minh uy tín (chứng chỉ, giấy phép, ảnh hoạt động...)
-            </p>
-            <div className="space-y-2">
-              <Label htmlFor="driveLink">Link Google Drive</Label>
-              {isEditing ? (
-                <Input
-                  id="driveLink"
-                  value={profile.driveLink}
-                  onChange={(e) => setProfile({ ...profile, driveLink: e.target.value })}
-                  placeholder="https://drive.google.com/drive/folders/..."
-                />
-              ) : (
-                <div className="flex items-center gap-2 text-sm">
-                  <Link2 className="h-4 w-4 text-muted-foreground" />
-                  {profile.driveLink ? (
-                    <a href={profile.driveLink} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                      Xem tài liệu
-                    </a>
-                  ) : (
-                    <span className="text-muted-foreground italic">Chưa cập nhật</span>
-                  )}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+      {isLoading && (
+        <div className="fixed inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Users, User, Compass, Backpack } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { SecureImage } from '@/components/ui/SecureImage';
 import {
   type Trip,
   difficultyLabels,
@@ -12,6 +13,7 @@ import {
 interface TripCardProps {
   trip: Trip;
   index: number;
+  onClick?: (id: string) => void;
 }
 
 const getDifficultyClass = (difficulty: Difficulty) => {
@@ -45,13 +47,17 @@ const formatDate = (dateStr: string) => {
   });
 };
 
-export const TripCard = ({ trip, index }: TripCardProps) => {
+export const TripCard = ({ trip, index, onClick }: TripCardProps) => {
   const navigate = useNavigate();
   const spotsPercentage = (trip.spotsRemaining / trip.totalSpots) * 100;
   const isLowSpots = spotsPercentage <= 30;
 
   const handleViewDetail = () => {
-    navigate(`/trip/${trip.id}`);
+    if (onClick) {
+      onClick(trip.id);
+    } else {
+      navigate(`/trip/${trip.id}`);
+    }
   };
 
   return (
@@ -63,17 +69,16 @@ export const TripCard = ({ trip, index }: TripCardProps) => {
       <div className="flex flex-col md:flex-row">
         {/* Image Section */}
         <div className="relative w-full md:w-64 h-48 md:h-auto shrink-0 overflow-hidden">
-          {trip.image ? (
-            <img
-              src={trip.image}
-              alt={trip.name}
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-          ) : (
-            <div className="absolute inset-0 gradient-mountain flex items-center justify-center">
-              <Compass className="h-16 w-16 text-primary-foreground/30" />
-            </div>
-          )}
+          <SecureImage
+            src={trip.image}
+            alt={trip.name}
+            className="absolute inset-0 w-full h-full object-cover"
+            fallback={
+              <div className="absolute inset-0 gradient-mountain flex items-center justify-center">
+                <Compass className="h-16 w-16 text-primary-foreground/30" />
+              </div>
+            }
+          />
           <div className="absolute top-3 left-3">
             <Badge
               variant="secondary"
@@ -152,18 +157,16 @@ export const TripCard = ({ trip, index }: TripCardProps) => {
               <div className="flex items-center gap-2">
                 <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${
-                      isLowSpots ? 'bg-accent' : 'bg-primary'
-                    }`}
+                    className={`h-full rounded-full transition-all ${isLowSpots ? 'bg-accent' : 'bg-primary'
+                      }`}
                     style={{
                       width: `${100 - spotsPercentage}%`,
                     }}
                   />
                 </div>
                 <span
-                  className={`text-sm font-medium ${
-                    isLowSpots ? 'text-accent' : 'text-foreground'
-                  }`}
+                  className={`text-sm font-medium ${isLowSpots ? 'text-accent' : 'text-foreground'
+                    }`}
                 >
                   {trip.spotsRemaining}/{trip.totalSpots} chỗ trống
                 </span>

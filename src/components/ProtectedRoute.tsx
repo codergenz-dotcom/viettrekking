@@ -1,16 +1,18 @@
 import { Navigate } from 'react-router-dom';
-import { useAuth, UserRole } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
+
+type RequiredRole = 'ADMIN' | 'USER';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: UserRole | UserRole[];
+  requiredRole?: RequiredRole | RequiredRole[];
   redirectTo?: string;
 }
 
-export function ProtectedRoute({ 
-  children, 
-  requiredRole, 
-  redirectTo = '/login' 
+export function ProtectedRoute({
+  children,
+  requiredRole,
+  redirectTo = '/login'
 }: ProtectedRouteProps) {
   const { currentUser, isLoggedIn } = useAuth();
 

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Mail, MapPin, Calendar, Award, Facebook, Instagram, Mountain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -5,7 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { chatService } from '@/services/api';
+import { SecureImage } from '@/components/ui/SecureImage';
+import { MessageSquare, Loader2 } from 'lucide-react';
 import { mockAdminUsers } from '@/data/mockUsers';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 import { mockTrips, difficultyLabels, type Trip } from '@/data/mockTrips';
 
 interface CreatedTrip {
@@ -41,6 +47,27 @@ const formatDate = (dateStr: string | Date) => {
 const PublicProfile = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const [isStartingChat, setIsStartingChat] = useState(false);
+
+  const handleStartChat = async () => {
+    if (!currentUser) {
+      toast.error('Vui lòng đăng nhập để nhắn tin');
+      return;
+    }
+    if (!userId) return;
+
+    setIsStartingChat(true);
+    try {
+      const response = await chatService.createDirectConversation({ recipientUserId: userId });
+      navigate(`/chat?roomId=${response.data.id}`);
+    } catch (error) {
+      console.error('Failed to start chat:', error);
+      toast.error('Không thể tạo cuộc hội thoại');
+    } finally {
+      setIsStartingChat(false);
+    }
+  };
 
   const user = mockAdminUsers.find(u => u.id === userId);
 
@@ -49,7 +76,7 @@ const PublicProfile = () => {
 
   const mockOrganizedTrips = mockTrips.filter(t => t.organizerId === userId);
   const createdTrips = getCreatedTrips().filter(t => t.createdBy === userId);
-  
+
   const organizedTrips = [
     ...mockOrganizedTrips,
     ...createdTrips.map(t => ({
@@ -131,6 +158,12 @@ const PublicProfile = () => {
                 {location}
               </p>
             </div>
+            {currentUser && currentUser.id !== userId && (
+              <Button onClick={handleStartChat} disabled={isStartingChat} className="gap-2">
+                {isStartingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
+                Nhắn tin
+              </Button>
+            )}
           </div>
 
           {/* Stats */}
@@ -233,13 +266,16 @@ const PublicProfile = () => {
                   onClick={() => navigate(`/trip/${trip.id}`)}
                 >
                   <div className="w-16 h-16 rounded-lg bg-muted overflow-hidden shrink-0">
-                    {trip.image ? (
-                      <img src={trip.image} alt={trip.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Mountain className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    )}
+                    <SecureImage
+                      src={trip.image}
+                      alt={trip.name}
+                      className="w-full h-full object-cover"
+                      fallback={
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Mountain className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      }
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-medium text-foreground truncate">{trip.name}</h4>

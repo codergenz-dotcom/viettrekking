@@ -6,16 +6,38 @@ import { cn } from '@/lib/utils';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
+  onTyping?: (isTyping: boolean) => void;
   disabled?: boolean;
 }
 
-export function ChatInput({ onSend, disabled }: ChatInputProps) {
+export function ChatInput({ onSend, onTyping, disabled }: ChatInputProps) {
   const [message, setMessage] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useState<any>(null)[0];
 
   const handleSend = () => {
     if (message.trim()) {
       onSend(message.trim());
       setMessage('');
+      if (onTyping) {
+        onTyping(false);
+        setIsTyping(false);
+      }
+    }
+  };
+
+  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setMessage(val);
+
+    if (onTyping) {
+      if (!isTyping && val.length > 0) {
+        setIsTyping(true);
+        onTyping(true);
+      } else if (isTyping && val.length === 0) {
+        setIsTyping(false);
+        onTyping(false);
+      }
     }
   };
 
@@ -38,17 +60,17 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
             <Image className="h-5 w-5 text-muted-foreground" />
           </Button>
         </div>
-        
+
         {/* Attachment button - Mobile */}
         <Button variant="ghost" size="icon" className="sm:hidden shrink-0 h-9 w-9">
           <Paperclip className="h-5 w-5 text-muted-foreground" />
         </Button>
-        
+
         {/* Input */}
         <div className="flex-1 relative">
           <Textarea
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={handleMessageChange}
             onKeyDown={handleKeyDown}
             placeholder="Nhập tin nhắn..."
             className={cn(
@@ -58,15 +80,15 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
             rows={1}
             disabled={disabled}
           />
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 hover:bg-primary/10"
           >
             <Smile className="h-5 w-5 text-muted-foreground" />
           </Button>
         </div>
-        
+
         {/* Send/Mic button */}
         {message.trim() ? (
           <Button
@@ -87,7 +109,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           </Button>
         )}
       </div>
-      
+
       {/* Quick tip - Desktop */}
       <p className="hidden md:block text-xs text-muted-foreground mt-2 text-center">
         Nhấn <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">Enter</kbd> để gửi, <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">Shift + Enter</kbd> để xuống dòng

@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { X, ImagePlus, Users, Check, ChevronsUpDown } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
+import { X, ImagePlus, Users, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,9 @@ import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import type { TripFormData } from "@/pages/CreateTripSelfOrganize";
+import { imageService } from "@/services/api";
+import { toast } from "sonner";
+import { api } from "@/lib/axios";
 
 interface BasicInfoTabProps {
   formData: TripFormData;
@@ -74,6 +77,72 @@ export const BasicInfoTab = ({ formData, updateFormData }: BasicInfoTabProps) =>
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [locationOpen, setLocationOpen] = useState(false);
   const [locationSearch, setLocationSearch] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewMap, setPreviewMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    return () => {
+      Object.values(previewMap).forEach(url => URL.revokeObjectURL(url));
+    };
+  }, []);
+
+  useEffect(() => {
+    const fetchImages = async () => {
+      const newPreviews: Record<string, string> = { ...previewMap };
+      let hasChanges = false;
+
+      for (const imgUrl of formData.images) {
+        if (newPreviews[imgUrl]) continue;
+
+        // Check UUID format
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const isUUID = uuidRegex.test(imgUrl);
+
+        const isBackendImage = isUUID || !imgUrl.startsWith('http') ||
+          imgUrl.includes('localhost:8080') ||
+          (import.meta.env.VITE_API_BASE_URL && imgUrl.startsWith(import.meta.env.VITE_API_BASE_URL));
+
+        if (isBackendImage) {
+          try {
+            let fetchUrl = imgUrl;
+
+            // Convert UUID to API path
+            if (isUUID) {
+              fetchUrl = `/api/v1/images/${imgUrl}`;
+            } else if (imgUrl.startsWith('http')) {
+              try {
+                const urlObj = new URL(imgUrl);
+                if (urlObj.origin.includes('localhost:8080') ||
+                  (import.meta.env.VITE_API_BASE_URL && urlObj.origin === new URL(import.meta.env.VITE_API_BASE_URL).origin)) {
+                  fetchUrl = urlObj.pathname + urlObj.search;
+                }
+              } catch (e) { }
+            }
+
+            const response = await api.get(fetchUrl, { responseType: 'blob' });
+            const blobUrl = URL.createObjectURL(response.data);
+            newPreviews[imgUrl] = blobUrl;
+            hasChanges = true;
+          } catch (error) {
+            console.error("Failed to load image preview securely:", imgUrl, error);
+            newPreviews[imgUrl] = imgUrl;
+            hasChanges = true;
+          }
+        } else {
+          newPreviews[imgUrl] = imgUrl;
+          hasChanges = true;
+        }
+      }
+
+      if (hasChanges) {
+        setPreviewMap(newPreviews);
+      }
+    };
+
+    if (formData.images.length > 0) {
+      fetchImages();
+    }
+  }, [formData.images]);
 
   const handleLocationChange = (value: string) => {
     const selectedLocation = trekLocations.find((loc) => loc.value === value);
@@ -92,21 +161,34 @@ export const BasicInfoTab = ({ formData, updateFormData }: BasicInfoTabProps) =>
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files) return;
+    if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        updateFormData({ images: [...formData.images, base64] });
-      };
-      reader.readAsDataURL(file);
-    });
-    
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    setIsUploading(true);
+    const newImageIds: string[] = [];
+
+    try {
+      for (const file of Array.from(files)) {
+        // Upload file và lấy ID
+        const uploadResponse = await imageService.uploadImage(file);
+        const imageId = uploadResponse.data.id;
+
+        console.log('Image uploaded, ID:', imageId);
+        newImageIds.push(imageId);
+      }
+
+      // Lưu image IDs vào formData
+      updateFormData({ images: [...formData.images, ...newImageIds] });
+      toast.success(`Đã tải lên ${files.length} ảnh`);
+    } catch (error) {
+      console.error("Upload images error:", error);
+      toast.error("Tải ảnh thất bại");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -345,14 +427,14 @@ export const BasicInfoTab = ({ formData, updateFormData }: BasicInfoTabProps) =>
           onChange={handleImageUpload}
           className="hidden"
         />
-        
+
         {/* Image preview grid */}
         {formData.images.length > 0 && (
           <div className="grid grid-cols-2 gap-2">
             {formData.images.map((img, index) => (
               <div key={index} className="relative group aspect-video">
                 <img
-                  src={img}
+                  src={previewMap[img] || img}
                   alt={`Upload ${index + 1}`}
                   className="w-full h-full object-cover rounded-lg"
                 />
@@ -372,14 +454,21 @@ export const BasicInfoTab = ({ formData, updateFormData }: BasicInfoTabProps) =>
             ))}
           </div>
         )}
-        
-        <div 
-          onClick={() => fileInputRef.current?.click()}
-          className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center min-h-[200px] bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+
+        <div
+          onClick={() => !isUploading && fileInputRef.current?.click()}
+          className={cn(
+            "border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center min-h-[200px] bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer",
+            isUploading && "opacity-50 cursor-wait"
+          )}
         >
-          <ImagePlus className="h-12 w-12 text-muted-foreground mb-3" />
+          {isUploading ? (
+            <Loader2 className="h-12 w-12 text-primary animate-spin mb-3" />
+          ) : (
+            <ImagePlus className="h-12 w-12 text-muted-foreground mb-3" />
+          )}
           <p className="text-sm text-muted-foreground text-center">
-            Kéo thả hoặc click để tải ảnh lên
+            {isUploading ? "Đang tải ảnh lên..." : "Kéo thả hoặc click để tải ảnh lên"}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
             Ảnh đầu tiên hiển thị trên card trip

@@ -11,83 +11,75 @@ import {
 import { PorterCard } from './PorterCard';
 import { RejectReasonModal } from './RejectReasonModal';
 import { useToast } from '@/hooks/use-toast';
-import { mockPorters, type Porter, type PorterStatus } from '@/data/mockPorters';
+import { adminService, type PorterApplicationStatus, type PorterApplicationListItem } from '@/services/api';
+import { Loader2 } from 'lucide-react';
 
-const PORTER_APPLICATIONS_KEY = 'porterApplications';
 
-const getPorterApplications = (): Porter[] => {
-  const stored = localStorage.getItem(PORTER_APPLICATIONS_KEY);
-  if (stored) return JSON.parse(stored);
-  localStorage.setItem(PORTER_APPLICATIONS_KEY, JSON.stringify(mockPorters));
-  return mockPorters;
-};
-
-const savePorterApplications = (porters: Porter[]) => {
-  localStorage.setItem(PORTER_APPLICATIONS_KEY, JSON.stringify(porters));
-};
 
 export const PorterApprovalList = () => {
   const { toast } = useToast();
-  const [porters, setPorters] = useState<Porter[]>([]);
+  const [porters, setPorters] = useState<PorterApplicationListItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<PorterStatus | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<PorterApplicationStatus | 'ALL'>('ALL');
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
-  const [selectedPorter, setSelectedPorter] = useState<Porter | null>(null);
+  const [selectedPorter, setSelectedPorter] = useState<PorterApplicationListItem | null>(null);
+  const [isProcessing, setIsProcessing] = useState<string | null>(null);
+
+  const fetchPorters = async () => {
+    setIsLoading(true);
+    try {
+      const params: any = {
+        page: 0,
+        size: 100,
+      };
+
+      if (statusFilter !== 'ALL') {
+        params.status = statusFilter;
+      }
+      if (searchQuery) {
+        params.search = searchQuery;
+      }
+
+      const response = await adminService.getPorterApplications(params);
+      setPorters(response.data.content);
+    } catch (error) {
+      console.error('Fetch porters error:', error);
+      toast({
+        title: 'Lỗi',
+        description: 'Không thể tải danh sách Porter.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    setPorters(getPorterApplications());
-  }, []);
+    const timer = setTimeout(() => {
+      fetchPorters();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, statusFilter]);
 
-  const filteredPorters = useMemo(() => {
-    let result = [...porters];
+  const pendingCount = porters.filter((p) => p.status === 'PENDING').length;
 
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (porter) =>
-          porter.name.toLowerCase().includes(query) ||
-          porter.email.toLowerCase().includes(query) ||
-          porter.phone.includes(query)
-      );
-    }
+  const handleApprove = async (porterId: string) => {
+    setIsProcessing(porterId);
+    try {
+      await adminService.approvePorter(porterId);
 
-    if (statusFilter !== 'all') {
-      result = result.filter((porter) => porter.status === statusFilter);
-    }
-
-    result.sort(
-      (a, b) =>
-        new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime()
-    );
-
-    return result;
-  }, [porters, searchQuery, statusFilter]);
-
-  const pendingCount = porters.filter((p) => p.status === 'pending').length;
-
-  const handleApprove = (porterId: string) => {
-    const updated = porters.map((p) =>
-      p.id === porterId ? { ...p, status: 'approved' as PorterStatus } : p
-    );
-    setPorters(updated);
-    savePorterApplications(updated);
-
-    const approvedPorter = updated.find((p) => p.id === porterId);
-    if (approvedPorter) {
-      const approvedList = JSON.parse(localStorage.getItem('approvedPorters') || '[]');
-      approvedList.push({
-        odId: approvedPorter.id,
-        odName: approvedPorter.name,
-        email: approvedPorter.email,
-        approvedAt: new Date().toISOString(),
+      toast({
+        title: 'Đã duyệt Porter',
+        description: `Hồ sơ đã được duyệt thành công.`,
       });
-      localStorage.setItem('approvedPorters', JSON.stringify(approvedList));
-    }
 
-    toast({
-      title: 'Đã duyệt Porter',
-      description: `${approvedPorter?.name} đã được duyệt thành công.`,
-    });
+      fetchPorters();
+    } catch (error) {
+      console.error('Approve porter error:', error);
+    } finally {
+      setIsProcessing(null);
+    }
   };
 
   const handleRejectClick = (porterId: string) => {
@@ -98,22 +90,24 @@ export const PorterApprovalList = () => {
     }
   };
 
-  const handleRejectConfirm = (reason: string) => {
-    if (selectedPorter) {
-      const updated = porters.map((p) =>
-        p.id === selectedPorter.id
-          ? { ...p, status: 'rejected' as PorterStatus, rejectReason: reason }
-          : p
-      );
-      setPorters(updated);
-      savePorterApplications(updated);
+  const handleRejectConfirm = async (reason: string) => {
+    if (!selectedPorter) return;
+
+    setIsProcessing(selectedPorter.id);
+    try {
+      await adminService.rejectPorter(selectedPorter.id, { reason });
 
       toast({
         title: 'Đã từ chối Porter',
-        description: `Đã từ chối hồ sơ của ${selectedPorter.name}.`,
+        description: `Đã từ chối hồ sơ thành công.`,
         variant: 'destructive',
       });
       setSelectedPorter(null);
+      fetchPorters();
+    } catch (error) {
+      console.error('Reject porter error:', error);
+    } finally {
+      setIsProcessing(null);
     }
   };
 
@@ -144,30 +138,36 @@ export const PorterApprovalList = () => {
         </div>
         <Select
           value={statusFilter}
-          onValueChange={(value) => setStatusFilter(value as PorterStatus | 'all')}
+          onValueChange={(value) => setStatusFilter(value as PorterApplicationStatus | 'ALL')}
         >
           <SelectTrigger className="w-full sm:w-48">
             <Filter className="h-4 w-4 mr-2" />
             <SelectValue placeholder="Lọc trạng thái" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tất cả trạng thái</SelectItem>
-            <SelectItem value="pending">Chờ duyệt</SelectItem>
-            <SelectItem value="approved">Đã duyệt</SelectItem>
-            <SelectItem value="rejected">Từ chối</SelectItem>
+            <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
+            <SelectItem value="PENDING">Chờ duyệt</SelectItem>
+            <SelectItem value="APPROVED">Đã duyệt</SelectItem>
+            <SelectItem value="REJECTED">Từ chối</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {/* Porter List */}
       <div className="space-y-3">
-        {filteredPorters.length > 0 ? (
-          filteredPorters.map((porter) => (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-12 bg-card border border-border rounded-xl">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+            <p className="text-sm text-muted-foreground">Đang tải danh sách...</p>
+          </div>
+        ) : porters.length > 0 ? (
+          porters.map((porter) => (
             <PorterCard
               key={porter.id}
               porter={porter}
               onApprove={handleApprove}
               onReject={handleRejectClick}
+              isProcessing={isProcessing === porter.id}
             />
           ))
         ) : (
@@ -189,3 +189,4 @@ export const PorterApprovalList = () => {
     </div>
   );
 };
+

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Mail, Phone, MapPin, Camera, Facebook, Instagram, Link2, Lock } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Camera, Facebook, Instagram, Link2, Lock, HardDrive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,40 +10,60 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { userService, imageService, type UpdateProfileRequest } from '@/services/api';
 
 const ProfileSetup = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isPorterRole, setIsPorterRole] = useState(false);
+  const [isPorter, setIsPorter] = useState(false);
   const [profile, setProfile] = useState({
-    name: '',
     displayName: '',
+    name: '',
     email: '',
     phone: '',
     facebook: '',
     instagram: '',
+    driveLink: '',
     location: '',
     bio: '',
-    avatar: '',
-    driveLink: '',
   });
+  const [avatarUrl, setAvatarUrl] = useState('');
 
   useEffect(() => {
     if (currentUser) {
       const uid = currentUser.id || localStorage.getItem('firebase_uid') || '';
-      const userRole = localStorage.getItem(`userRole_${uid}`);
-      setIsPorterRole(userRole === 'porter');
+
+      const savedRole = localStorage.getItem(`userRole_${uid}`);
+      setIsPorter(savedRole === 'porter');
 
       setProfile(prev => ({
         ...prev,
+        displayName: (currentUser as any).displayName || prev.displayName || '',
         name: currentUser.name || '',
         email: currentUser.email || '',
-        avatar: currentUser.avatar || '',
       }));
+      setAvatarUrl(currentUser.avatar || '');
     }
   }, [currentUser]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const response = await imageService.uploadImage(file);
+      const imageUrl = imageService.getImageUrl(response.data.id);
+      setAvatarUrl(imageUrl);
+      toast({
+        title: "Thành công",
+        description: "Đã cập nhật ảnh đại diện",
+      });
+    } catch (error) {
+      console.error("Avatar upload failed:", error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,45 +78,26 @@ const ProfileSetup = () => {
     }
 
     setIsSubmitting(true);
-
     try {
-      const uid = currentUser?.id || localStorage.getItem('firebase_uid') || '';
-      const userProfile = {
-        ...profile,
-        uid,
-        createdAt: new Date().toISOString(),
+      const payload: UpdateProfileRequest = {
+        displayName: profile.displayName,
+        fullName: profile.name,
+        phone: profile.phone,
+        bio: profile.bio,
+        location: profile.location,
+        facebookUrl: profile.facebook,
+        instagramUrl: profile.instagram,
+        driveLink: profile.driveLink,
       };
 
-      localStorage.setItem(`userProfile_${uid}`, JSON.stringify(userProfile));
-      localStorage.setItem(`profileCompleted_${uid}`, 'true');
+      console.log('Sending profile setup payload:', payload);
+      await userService.updateProfile(payload);
 
-      const userRole = localStorage.getItem(`userRole_${uid}`);
-      if (userRole === 'porter') {
-        const pendingPorters = JSON.parse(localStorage.getItem('pendingPorters') || '[]');
-        const newPorter = {
-          odId: uid,
-          name: profile.name,
-          email: profile.email,
-          phone: profile.phone,
-          driveLink: profile.driveLink,
-          registeredAt: new Date().toISOString(),
-          status: 'pending'
-        };
-        pendingPorters.push(newPorter);
-        localStorage.setItem('pendingPorters', JSON.stringify(pendingPorters));
-
-        toast({
-          title: "Đăng ký thành công!",
-          description: "Hồ sơ Porter của bạn đang chờ được duyệt",
-        });
-        navigate('/register/pending');
-      } else {
-        toast({
-          title: "Hoàn tất!",
-          description: "Hồ sơ của bạn đã được tạo thành công",
-        });
-        navigate('/my-trips');
-      }
+      toast({
+        title: "Hoàn tất!",
+        description: "Hồ sơ của bạn đã được tạo thành công",
+      });
+      navigate('/my-trips');
     } catch (error) {
       console.error('Error saving profile:', error);
       toast({
@@ -124,7 +125,7 @@ const ProfileSetup = () => {
             <div className="flex justify-center">
               <div className="relative">
                 <Avatar className="h-24 w-24 border-4 border-primary/20">
-                  <AvatarImage src={profile.avatar} alt={profile.name} />
+                  <AvatarImage src={avatarUrl} alt={profile.name} />
                   <AvatarFallback className="text-2xl bg-primary/10 text-primary">
                     {profile.name ? profile.name.split(' ').map(n => n[0]).join('') : 'U'}
                   </AvatarFallback>
@@ -134,13 +135,34 @@ const ProfileSetup = () => {
                   size="icon"
                   variant="secondary"
                   className="absolute bottom-0 right-0 h-8 w-8 rounded-full shadow"
+                  onClick={() => document.getElementById('avatar-upload')?.click()}
                 >
                   <Camera className="h-4 w-4" />
                 </Button>
+                <input
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                />
               </div>
             </div>
 
-            {/* Name - Pre-filled from Google */}
+            <div className="space-y-2">
+              <Label htmlFor="displayName">Tên hiển thị</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="displayName"
+                  value={profile.displayName}
+                  onChange={(e) => setProfile({ ...profile, displayName: e.target.value })}
+                  className="pl-10"
+                  placeholder="Tên bạn muốn hiển thị"
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="name">Họ và tên</Label>
               <div className="relative">
@@ -153,22 +175,6 @@ const ProfileSetup = () => {
                   placeholder="Nguyễn Văn A"
                 />
               </div>
-            </div>
-
-            {/* Display Name */}
-            <div className="space-y-2">
-              <Label htmlFor="displayName">Tên gọi</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="displayName"
-                  value={profile.displayName}
-                  onChange={(e) => setProfile({ ...profile, displayName: e.target.value })}
-                  className="pl-10"
-                  placeholder="Tên bạn muốn hiển thị (VD: Minh Trekker)"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">Nếu không nhập sẽ dùng Họ và tên</p>
             </div>
 
             {/* Email - Pre-filled from Google, readonly */}
@@ -244,6 +250,23 @@ const ProfileSetup = () => {
                   />
                 </div>
               </div>
+
+              {/* Google Drive Link - chỉ hiển thị cho porter */}
+              {isPorter && (
+                <div className="space-y-2">
+                  <Label htmlFor="driveLink" className="text-sm font-normal">Google Drive</Label>
+                  <div className="relative">
+                    <HardDrive className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="driveLink"
+                      value={profile.driveLink}
+                      onChange={(e) => setProfile({ ...profile, driveLink: e.target.value })}
+                      className="pl-10"
+                      placeholder="https://drive.google.com/..."
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <Separator className="my-2" />
@@ -274,35 +297,6 @@ const ProfileSetup = () => {
                 rows={3}
               />
             </div>
-
-            {/* Porter Section - Only show for Porter role */}
-            {isPorterRole && (
-              <>
-                <Separator className="my-2" />
-                <div className="space-y-4 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-900">
-                  <Label className="text-base font-medium flex items-center gap-2">
-                    <Link2 className="h-4 w-4 text-orange-600" />
-                    Tài liệu Porter
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Cung cấp link Google Drive chứa các tài liệu chứng minh uy tín của bạn (chứng chỉ, giấy phép, ảnh hoạt động...)
-                  </p>
-                  <div className="space-y-2">
-                    <Label htmlFor="driveLink" className="text-sm font-normal">Link Google Drive</Label>
-                    <div className="relative">
-                      <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="driveLink"
-                        value={profile.driveLink}
-                        onChange={(e) => setProfile({ ...profile, driveLink: e.target.value })}
-                        className="pl-10"
-                        placeholder="https://drive.google.com/drive/folders/..."
-                      />
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
 
             {/* Submit Button */}
             <Button

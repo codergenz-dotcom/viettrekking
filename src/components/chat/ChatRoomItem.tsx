@@ -1,18 +1,21 @@
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { Users, User } from 'lucide-react';
-import type { ChatRoom } from '@/data/mockChats';
+import type { ConversationResponse } from '@/services/api';
+import { SecureAvatar } from '@/components/ui/SecureAvatar';
 
 interface ChatRoomItemProps {
-  room: ChatRoom;
+  room: ConversationResponse;
   isActive: boolean;
   onClick: () => void;
 }
 
-function formatTime(date: Date) {
+function formatTime(dateInput: Date | string) {
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  if (isNaN(date.getTime())) return '';
+
   if (isToday(date)) {
     return format(date, 'HH:mm');
   }
@@ -32,17 +35,18 @@ export function ChatRoomItem({ room, isActive, onClick }: ChatRoomItemProps) {
       )}
     >
       <div className="relative shrink-0">
-        <Avatar className="h-12 w-12">
-          <AvatarImage src={room.avatar} />
-          <AvatarFallback className="bg-primary/10">
-            {room.type === 'group' ? (
+        <SecureAvatar
+          src={room.displayAvatar}
+          className="h-12 w-12"
+          fallback={
+            room.type === 'TRIP_GROUP' ? (
               <Users className="h-5 w-5 text-primary" />
             ) : (
               <User className="h-5 w-5 text-primary" />
-            )}
-          </AvatarFallback>
-        </Avatar>
-        {room.type === 'group' && (
+            )
+          }
+        />
+        {room.type === 'TRIP_GROUP' && (
           <div className="absolute -bottom-1 -right-1 bg-primary rounded-full p-0.5">
             <Users className="h-3 w-3 text-primary-foreground" />
           </div>
@@ -52,22 +56,22 @@ export function ChatRoomItem({ room, isActive, onClick }: ChatRoomItemProps) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className={cn('font-medium truncate', room.unreadCount > 0 && 'text-foreground')}>
-            {room.name}
+            {room.displayName}
           </span>
           {room.lastMessage && (
             <span className="text-xs text-muted-foreground shrink-0 ml-auto">
-              {formatTime(room.lastMessage.timestamp)}
+              {formatTime(room.lastMessage.createdAt)}
             </span>
           )}
         </div>
-        
+
         <div className="flex items-center gap-2 mt-0.5">
           {room.lastMessage && (
             <p className={cn(
               'text-sm truncate',
               room.unreadCount > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'
             )}>
-              {room.lastMessage.content}
+              {room.lastMessage.contentText}
             </p>
           )}
           {room.unreadCount > 0 && (

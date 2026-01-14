@@ -23,8 +23,8 @@ const mainNavItems = [
   { title: 'Khám phá', url: '/trips', icon: Mountain },
   { title: 'Tin nhắn', url: '/chat', icon: MessageCircle },
   { title: 'Thông báo', url: '/notifications', icon: Bell },
-  { title: 'Lịch trình', url: '/calendar', icon: Calendar },
-  { title: 'Địa điểm', url: '/locations', icon: MapPin },
+  // { title: 'Lịch trình', url: '/calendar', icon: Calendar },
+  // { title: 'Địa điểm', url: '/locations', icon: MapPin },
 ];
 
 const settingsItems = [
@@ -61,7 +61,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         {/* User: Add Trip Button */}
-        <SidebarGroup>
+        {/* <SidebarGroup>
           <SidebarGroupContent className={cn(isCollapsed ? "px-2" : "px-3")}>
             <Button
               onClick={() => navigate('/create-trip')}
@@ -72,7 +72,7 @@ export function AppSidebar() {
               {!isCollapsed && <span>Thêm chuyến</span>}
             </Button>
           </SidebarGroupContent>
-        </SidebarGroup>
+        </SidebarGroup> */}
 
         <SidebarGroup>
           <SidebarGroupContent>

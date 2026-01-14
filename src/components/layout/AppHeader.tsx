@@ -22,9 +22,7 @@ export function AppHeader() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b border-border bg-background/95 backdrop-blur-sm px-4">
-      <SidebarTrigger className="h-8 w-8" />
-
+    <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border bg-background/95 backdrop-blur-sm px-6">
       <div className="flex-1" />
 
       <div className="flex items-center gap-2">

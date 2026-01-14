@@ -35,8 +35,6 @@ export function ChatRoom({ room, onBack, onToggleInfo, showInfoButton }: ChatRoo
     setIsLoading(true);
     try {
       const response = await chatService.getMessages(room.id, { size: 50 });
-      // API returns newest first, we want display oldest first? 
-      // Actually usually chat history is sorted DESC in API, let's reverse for UI.
       setMessages([...response.data.content].reverse());
     } catch (error) {
       console.error('Failed to fetch messages:', error);
@@ -48,20 +46,16 @@ export function ChatRoom({ room, onBack, onToggleInfo, showInfoButton }: ChatRoo
   useEffect(() => {
     fetchMessages();
 
-    // Subscribe to real-time messages
     chatWebSocketClient.subscribeToConversation(room.id, (newMessage: MessageResponse) => {
       setMessages(prev => {
-        // Avoid duplicates if REST and WS both return same message
         if (prev.find(m => m.id === newMessage.id)) return prev;
         return [...prev, newMessage];
       });
     });
 
-    // Subscribe to typing indicators
     chatWebSocketClient.subscribeToTyping(room.id, (data) => {
       if (data.userId !== currentUser?.id) {
         setIsTyping(data.isTyping);
-        // Clear typing after 3 seconds if no update
         if (data.isTyping) {
           setTimeout(() => setIsTyping(false), 3000);
         }

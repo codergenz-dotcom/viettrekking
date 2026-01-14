@@ -1,30 +1,14 @@
-import { Mountain, Calendar, Settings, MapPin, HelpCircle, Compass, Plus, MessageCircle, Bell } from 'lucide-react';
+import { Mountain, Compass, MessageCircle, Bell, Settings, HelpCircle, Plus } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
-import { cn } from '@/lib/utils';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarFooter,
-  useSidebar,
-} from '@/components/ui/sidebar';
 
 const mainNavItems = [
   { title: 'Chuyến đi của tôi', url: '/my-trips', icon: Compass },
   { title: 'Khám phá', url: '/trips', icon: Mountain },
   { title: 'Tin nhắn', url: '/chat', icon: MessageCircle },
   { title: 'Thông báo', url: '/notifications', icon: Bell },
-  // { title: 'Lịch trình', url: '/calendar', icon: Calendar },
-  // { title: 'Địa điểm', url: '/locations', icon: MapPin },
 ];
 
 const settingsItems = [
@@ -33,89 +17,83 @@ const settingsItems = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
   const navigate = useNavigate();
-  const isCollapsed = state === 'collapsed';
+  const { currentUser } = useAuth();
 
   return (
-    <Sidebar collapsible="icon" className="[&[data-state=collapsed]]:w-16">
-      <SidebarHeader className="border-b border-sidebar-border">
+    <aside className="w-64 min-h-screen bg-card border-r border-border shrink-0 flex flex-col">
+      {/* Logo */}
+      <div className="h-16 flex items-center px-6 border-b border-border">
         <Link
           to="/"
-          className={cn(
-            "flex items-center gap-3 py-3 hover:opacity-80 transition-opacity",
-            isCollapsed ? "justify-center px-0" : "px-2"
-          )}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <div className="p-2 rounded-xl gradient-mountain shrink-0">
+          <div className="p-1.5 rounded-lg bg-primary">
             <Mountain className="h-5 w-5 text-primary-foreground" />
           </div>
-          {!isCollapsed && (
-            <div className="flex flex-col min-w-0">
-              <span className="font-bold text-sidebar-foreground truncate">VietTrekking</span>
-              <span className="text-xs text-sidebar-foreground/60 truncate">Cộng đồng leo núi</span>
-            </div>
-          )}
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-lg text-foreground leading-none">VietTrekking</span>
+            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Cộng đồng leo núi</span>
+          </div>
         </Link>
-      </SidebarHeader>
+      </div>
 
-      <SidebarContent>
-        {/* User: Add Trip Button */}
-        {/* <SidebarGroup>
-          <SidebarGroupContent className={cn(isCollapsed ? "px-2" : "px-3")}>
-            <Button
-              onClick={() => navigate('/create-trip')}
-              className="w-full gap-2"
-              size={isCollapsed ? "icon" : "default"}
-            >
-              <Plus className="h-4 w-4" />
-              {!isCollapsed && <span>Thêm chuyến</span>}
-            </Button>
-          </SidebarGroupContent>
-        </SidebarGroup> */}
-
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
+      {/* Navigation */}
+      <nav className="p-4 flex-1 overflow-y-auto">
+        <div className="space-y-6">
+          <div>
+            <div className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Menu chính
+            </div>
+            <ul className="space-y-1">
               {mainNavItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild tooltip={item.title}>
-                    <NavLink
-                      to={item.url}
-                      end={item.url === '/'}
-                      className="flex items-center gap-2"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <li key={item.url}>
+                  <NavLink
+                    to={item.url}
+                    end={item.url === '/trips'}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    activeClassName="bg-primary/10 text-primary font-medium"
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.title}</span>
+                  </NavLink>
+                </li>
               ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
+            </ul>
+          </div>
 
+          {/* <div>
+            <div className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Hỗ trợ
+            </div>
+            <ul className="space-y-1">
+              {settingsItems.map((item) => (
+                <li key={item.url}>
+                  <NavLink
+                    to={item.url}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    activeClassName="bg-primary/10 text-primary font-medium"
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.title}</span>
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </div> */}
+        </div>
+      </nav>
 
-      {/* <SidebarFooter className="border-t border-sidebar-border">
-        <SidebarMenu>
-          {settingsItems.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild tooltip={item.title}>
-                <NavLink
-                  to={item.url}
-                  className="flex items-center gap-2"
-                  activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                >
-                  <item.icon className="h-4 w-4" />
-                  <span>{item.title}</span>
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarFooter> */}
-    </Sidebar>
+      {/* Footer / Create Trip Button */}
+      {/* <div className="p-4 border-t border-border">
+        <Button 
+          onClick={() => navigate('/create-trip')}
+          className="w-full gap-2 shadow-sm"
+        >
+          <Plus className="h-4 w-4" />
+          Tạo chuyến đi
+        </Button>
+      </div> */}
+    </aside>
   );
 }

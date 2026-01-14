@@ -12,8 +12,8 @@ export interface CreatedTrip {
     discussionLink?: string;
     images?: string[];
     image?: string;
-    durationType?: "multi-day" | "single-day";
-    durationDays?: number;
+    durationType?: "multi-day" | "single-day" | "SINGLE_DAY" | "MULTI_DAY";
+    durationDays?: string | number;
     schedule?: { time: string; content: string }[];
     includedCosts?: { content: string; cost: string }[];
     additionalCosts?: { content: string; cost: string }[];
@@ -24,6 +24,10 @@ export interface CreatedTrip {
     createdByName?: string;
     maxParticipants?: number;
     participants?: number;
+    description?: string;
+    expectedPorterCount?: number;
+    creator?: { id: string; fullName: string };
+    porter?: { id: string; fullName: string };
 }
 
 export interface Registration {

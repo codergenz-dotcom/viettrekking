@@ -1,7 +1,5 @@
-// Re-export all types
 export * from './types';
 
-// Re-export all services
 export { authService } from './auth.service';
 export { userService } from './user.service';
 export { tripService, userTripService } from './trip.service';

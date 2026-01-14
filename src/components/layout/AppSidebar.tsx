@@ -31,7 +31,7 @@ export function AppSidebar() {
           <div className="p-1.5 rounded-lg bg-primary">
             <Mountain className="h-5 w-5 text-primary-foreground" />
           </div>
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col min-w-0 gap-1">
             <span className="font-bold text-lg text-foreground leading-none">VietTrekking</span>
             <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Cộng đồng leo núi</span>
           </div>
@@ -42,9 +42,6 @@ export function AppSidebar() {
       <nav className="p-4 flex-1 overflow-y-auto">
         <div className="space-y-6">
           <div>
-            <div className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Menu chính
-            </div>
             <ul className="space-y-1">
               {mainNavItems.map((item) => (
                 <li key={item.url}>

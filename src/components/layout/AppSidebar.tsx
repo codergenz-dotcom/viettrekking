@@ -98,7 +98,7 @@ export function AppSidebar() {
       </SidebarContent>
 
 
-      <SidebarFooter className="border-t border-sidebar-border">
+      {/* <SidebarFooter className="border-t border-sidebar-border">
         <SidebarMenu>
           {settingsItems.map((item) => (
             <SidebarMenuItem key={item.title}>
@@ -115,7 +115,7 @@ export function AppSidebar() {
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
-      </SidebarFooter>
+      </SidebarFooter> */}
     </Sidebar>
   );
 }

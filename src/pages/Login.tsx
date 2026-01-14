@@ -46,19 +46,13 @@ const Login = () => {
   };
 
   const handleRoleSelect = (role: 'trekker' | 'porter') => {
-    // Use currentUser.id or firebase_uid (which is set in loginWithGoogle)
-    // We prefer currentUser.id if available, but checking localStorage directly is safer 
-    // immediately after login if state hasn't propagated, though handleRoleSelect is a separate event.
-    // ProfileSetup checks both currentUser.id and localStorage['firebase_uid'].
 
-    // Attempt to get ID from multiple sources to be safe
     const uid = currentUser?.id || localStorage.getItem('firebase_uid');
 
     if (uid) {
       localStorage.setItem(`userRole_${uid}`, role);
     } else {
       console.warn("Could not find user ID to save role preference");
-      // Fallback or just proceed - better than broken key
     }
 
     setShowRoleDialog(false);

@@ -36,7 +36,6 @@ const Profile = () => {
     tripsCreated: 0,
   });
   const [avatarUrl, setAvatarUrl] = useState('');
-  // Use secure image hook to properly fetch avatar with auth
   const secureAvatarUrl = useSecureImage(avatarUrl);
 
   const [porterApplication, setPorterApplication] = useState<ApplyStatusResponse | null>(null);

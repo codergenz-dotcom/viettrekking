@@ -359,7 +359,6 @@ const MyTrips = () => {
     }
   };
 
-  // Server-side filtered
   const filteredTrips = myTrips;
   const filteredJoinedTrips = joinedTrips;
 

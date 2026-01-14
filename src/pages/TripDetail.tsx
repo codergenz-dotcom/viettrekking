@@ -64,7 +64,7 @@ const TripDetail = ({ tripId: propTripId, isModal = false, onEdit: onEditProp }:
             const status: TripStatusData = {
               tripId: id,
               status: response.data.status.toLowerCase() as any,
-              startedAt: response.data.status === 'in_progress' ? new Date().toISOString() : undefined, // This is approximate if we don't have exact time from API
+              startedAt: response.data.status === 'in_progress' ? new Date().toISOString() : undefined,
               completedAt: response.data.status === 'completed' ? new Date().toISOString() : undefined
             };
             setTripStatus(status);
@@ -151,10 +151,8 @@ const TripDetail = ({ tripId: propTripId, isModal = false, onEdit: onEditProp }:
       fetchReviews();
       fetchReviewSummary();
     }
-  }, [id, currentUser]); // Added currentUser to dependency array
+  }, [id, currentUser]);
 
-  // Conversion logic now relies only on apiTrip. 
-  // If apiTrip is null, we don't fall back to mock data.
   const trip: Trip | null = apiTrip ? convertToTrip(apiTrip as any) : null;
   const displayTrip = apiTrip;
 
@@ -249,7 +247,7 @@ const TripDetail = ({ tripId: propTripId, isModal = false, onEdit: onEditProp }:
         r.id === registrationId ? { ...r, status: "APPROVED" as RegistrationStatus } : r
       );
       setRegistrations(updated);
-      saveRegistrations(id!, updated); // Consider removing this local storage save if server persists it
+      saveRegistrations(id!, updated);
 
       toast({
         title: "Đã duyệt",
@@ -268,7 +266,7 @@ const TripDetail = ({ tripId: propTripId, isModal = false, onEdit: onEditProp }:
         r.id === registrationId ? { ...r, status: "REJECTED" as RegistrationStatus } : r
       );
       setRegistrations(updated);
-      saveRegistrations(id!, updated); // Consider removing this local storage save if server persists it
+      saveRegistrations(id!, updated);
       toast({
         title: "Đã từ chối",
         description: "Đơn đăng ký đã bị từ chối.",

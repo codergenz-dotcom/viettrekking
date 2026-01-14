@@ -94,7 +94,6 @@ export const BasicInfoTab = ({ formData, updateFormData }: BasicInfoTabProps) =>
       for (const imgUrl of formData.images) {
         if (newPreviews[imgUrl]) continue;
 
-        // Check UUID format
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         const isUUID = uuidRegex.test(imgUrl);
 
@@ -105,7 +104,6 @@ export const BasicInfoTab = ({ formData, updateFormData }: BasicInfoTabProps) =>
           try {
             let fetchUrl = imgUrl;
 
-            // Convert UUID to API path
             if (isUUID) {
               fetchUrl = `/api/v1/images/${imgUrl}`;
             } else if (imgUrl.startsWith('http')) {
@@ -168,7 +166,6 @@ export const BasicInfoTab = ({ formData, updateFormData }: BasicInfoTabProps) =>
 
     try {
       for (const file of Array.from(files)) {
-        // Upload file và lấy ID
         const uploadResponse = await imageService.uploadImage(file);
         const imageId = uploadResponse.data.id;
 
@@ -176,7 +173,6 @@ export const BasicInfoTab = ({ formData, updateFormData }: BasicInfoTabProps) =>
         newImageIds.push(imageId);
       }
 
-      // Lưu image IDs vào formData
       updateFormData({ images: [...formData.images, ...newImageIds] });
       toast.success(`Đã tải lên ${files.length} ảnh`);
     } catch (error) {

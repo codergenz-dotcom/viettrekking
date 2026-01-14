@@ -61,7 +61,6 @@ const Notifications = () => {
             markAsRead(notification.id);
         }
 
-        // Navigate based on type and referenceId
         if (notification.type === 'NEW_JOIN_REQUEST' || notification.type === 'JOIN_APPROVED') {
             navigate(`/trip/${notification.referenceId}?tab=members`);
         } else if (notification.type === 'TRIP_APPROVED' || notification.type === 'TRIP_REJECTED') {
@@ -228,7 +227,6 @@ const Notifications = () => {
     );
 };
 
-// Missing XCircle component from lucide-react in the import, let's fix that or use a fallback
 const XCircle = ({ className }: { className?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"

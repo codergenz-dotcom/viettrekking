@@ -26,7 +26,6 @@ export const TripBasicInfo = ({ trip, createdTrip, isRegistrationClosed, actions
 
         let active = true;
         const fetchImage = async () => {
-            // Check UUID format
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
             const isUUID = uuidRegex.test(tripImage);
 
@@ -37,7 +36,6 @@ export const TripBasicInfo = ({ trip, createdTrip, isRegistrationClosed, actions
                 try {
                     let fetchUrl = tripImage;
 
-                    // Convert UUID to API path
                     if (isUUID) {
                         fetchUrl = `/api/v1/images/${tripImage}`;
                     } else if (tripImage.startsWith('http')) {

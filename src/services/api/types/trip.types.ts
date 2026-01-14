@@ -109,7 +109,6 @@ export interface SearchTripsParams {
   date_from?: string;
 }
 
-// Registration types
 export interface JoinTripRequest {
   phone: string;
   email: string;
@@ -150,7 +149,6 @@ export interface UpdateTripStatusRequest {
   status: TripStatus;
 }
 
-// Porter types
 export type PorterApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface SubmitPorterApplicationRequest {
@@ -201,7 +199,6 @@ export interface TripApprovalStatusResponse {
   rejectReason?: string;
 }
 
-// Image types
 export interface ImageResponse {
   id: string;
   url?: string;
@@ -226,7 +223,6 @@ export interface ImageMetadata {
   updatedAt: string;
 }
 
-// Review types
 export interface CreateReviewRequest {
   rating: number;
   comment: string;

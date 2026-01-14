@@ -46,7 +46,6 @@ export const tripService = {
   },
 };
 
-// User trip service
 export const userTripService = {
   getActiveTrips: async (params?: PaginationRequest): Promise<PaginatedResponse<TripListItemResponse>> => {
     const response = await api.get<PaginatedResponse<TripListItemResponse>>('/api/v1/user/trips', { params });

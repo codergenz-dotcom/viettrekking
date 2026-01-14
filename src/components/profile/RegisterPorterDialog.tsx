@@ -93,7 +93,7 @@ export const RegisterPorterDialog = ({
                                     setFormData({ ...formData, name: e.target.value })
                                 }
                                 className="col-span-3"
-                                placeholder="Nguyễn Văn A"
+                                placeholder="Nhập họ tên"
                             />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
@@ -107,7 +107,7 @@ export const RegisterPorterDialog = ({
                                     setFormData({ ...formData, phone: e.target.value })
                                 }
                                 className="col-span-3"
-                                placeholder="0912..."
+                                placeholder="Nhập số điện thoại"
                             />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
@@ -121,7 +121,7 @@ export const RegisterPorterDialog = ({
                                     setFormData({ ...formData, experience: e.target.value })
                                 }
                                 className="col-span-3"
-                                placeholder="Mô tả kinh nghiệm trekking, dẫn đoàn..."
+                                placeholder="Mô tả kinh nghiệm"
                                 rows={3}
                             />
                         </div>
@@ -136,7 +136,7 @@ export const RegisterPorterDialog = ({
                                     setFormData({ ...formData, cvUrl: e.target.value })
                                 }
                                 className="col-span-3"
-                                placeholder="Link CV/Profile (Google Drive...)"
+                                placeholder="Link CV/Profile (Google Drive, OneDrive, Dropbox, ...))"
                             />
                         </div>
                     </div>

@@ -99,7 +99,6 @@ export const BasicInfoTab = ({ formData, updateFormData }: BasicInfoTabProps) =>
         const isUUID = uuidRegex.test(imgUrl);
 
         const isBackendImage = isUUID || !imgUrl.startsWith('http') ||
-          imgUrl.includes('localhost:8080') ||
           (import.meta.env.VITE_API_BASE_URL && imgUrl.startsWith(import.meta.env.VITE_API_BASE_URL));
 
         if (isBackendImage) {
@@ -112,8 +111,7 @@ export const BasicInfoTab = ({ formData, updateFormData }: BasicInfoTabProps) =>
             } else if (imgUrl.startsWith('http')) {
               try {
                 const urlObj = new URL(imgUrl);
-                if (urlObj.origin.includes('localhost:8080') ||
-                  (import.meta.env.VITE_API_BASE_URL && urlObj.origin === new URL(import.meta.env.VITE_API_BASE_URL).origin)) {
+                if (import.meta.env.VITE_API_BASE_URL && urlObj.origin === new URL(import.meta.env.VITE_API_BASE_URL).origin) {
                   fetchUrl = urlObj.pathname + urlObj.search;
                 }
               } catch (e) { }

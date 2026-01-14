@@ -47,14 +47,6 @@ export function useSecureImage(imageUrl: string | undefined | null): string {
       if (baseURL && imageUrl.startsWith(baseURL)) {
         const path = imageUrl.replace(baseURL, '');
         fetchImage(path);
-      } else if (imageUrl.includes('localhost:8080')) {
-        // Local dev server
-        try {
-          const urlObj = new URL(imageUrl);
-          fetchImage(urlObj.pathname + urlObj.search);
-        } catch {
-          setBlobUrl(imageUrl);
-        }
       } else {
         // External URL, use directly
         setBlobUrl(imageUrl);

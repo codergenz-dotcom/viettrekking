@@ -31,7 +31,6 @@ export const TripBasicInfo = ({ trip, createdTrip, isRegistrationClosed, actions
             const isUUID = uuidRegex.test(tripImage);
 
             const isBackendImage = isUUID || !tripImage.startsWith('http') ||
-                tripImage.includes('localhost:8080') ||
                 (import.meta.env.VITE_API_BASE_URL && tripImage.startsWith(import.meta.env.VITE_API_BASE_URL));
 
             if (isBackendImage) {
@@ -44,8 +43,7 @@ export const TripBasicInfo = ({ trip, createdTrip, isRegistrationClosed, actions
                     } else if (tripImage.startsWith('http')) {
                         try {
                             const urlObj = new URL(tripImage);
-                            if (urlObj.origin.includes('localhost:8080') ||
-                                (import.meta.env.VITE_API_BASE_URL && urlObj.origin === new URL(import.meta.env.VITE_API_BASE_URL).origin)) {
+                            if (import.meta.env.VITE_API_BASE_URL && urlObj.origin === new URL(import.meta.env.VITE_API_BASE_URL).origin) {
                                 fetchUrl = urlObj.pathname + urlObj.search;
                             }
                         } catch (e) { }

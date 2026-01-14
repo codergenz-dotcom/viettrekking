@@ -85,23 +85,25 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              {/* Main app routes */}
+              {/* Main app routes - protected */}
               <Route
                 path="/*"
                 element={
-                  <AppLayout>
-                    <Routes>
-                      <Route path="/trips" element={<Index />} />
-                      <Route path="/create-trip" element={<CreateTripSelfOrganize />} />
-                      <Route path="/trip/:id" element={<TripDetail />} />
-                      <Route path="/my-trips" element={<MyTrips />} />
-                      <Route path="/chat" element={<Chat />} />
-                      <Route path="/profile" element={<Profile />} />
-                      <Route path="/profile/:userId" element={<PublicProfile />} />
-                      <Route path="/notifications" element={<Notifications />} />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </AppLayout>
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <Routes>
+                        <Route path="/trips" element={<Index />} />
+                        <Route path="/create-trip" element={<CreateTripSelfOrganize />} />
+                        <Route path="/trip/:id" element={<TripDetail />} />
+                        <Route path="/my-trips" element={<MyTrips />} />
+                        <Route path="/chat" element={<Chat />} />
+                        <Route path="/profile" element={<Profile />} />
+                        <Route path="/profile/:userId" element={<PublicProfile />} />
+                        <Route path="/notifications" element={<Notifications />} />
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </AppLayout>
+                  </ProtectedRoute>
                 }
               />
             </Routes>

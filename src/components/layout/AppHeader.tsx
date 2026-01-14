@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -18,11 +18,8 @@ import { vi } from 'date-fns/locale';
 
 export function AppHeader() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { currentUser, isAdmin, logout } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
-
-  const isAdminPath = location.pathname.startsWith('/admin');
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border bg-background/95 backdrop-blur-sm px-6">
@@ -121,6 +118,14 @@ export function AppHeader() {
             <DropdownMenuLabel>
               {currentUser?.full_name || 'Tài khoản của tôi'}
             </DropdownMenuLabel>
+            {!isAdmin && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/profile')}>Hồ sơ</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/my-trips')}>Chuyến đi của tôi</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/settings')}>Cài đặt</DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive" onClick={logout}>
               <LogOut className="mr-2 h-4 w-4" />

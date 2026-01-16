@@ -25,6 +25,7 @@ import AdminPorters from "./pages/admin/AdminPorters";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminTrips from "./pages/admin/AdminTrips";
 import AdminReviews from "./pages/admin/AdminReviews";
+import AdminLocations from "./pages/admin/AdminLocations";
 import Notifications from "./pages/Notifications";
 
 const queryClient = new QueryClient();
@@ -82,6 +83,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRole="ADMIN">
                     <AdminReviews />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/locations"
+                element={
+                  <ProtectedRoute requiredRole="ADMIN">
+                    <AdminLocations />
                   </ProtectedRoute>
                 }
               />

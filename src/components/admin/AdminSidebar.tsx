@@ -1,11 +1,12 @@
 import { NavLink } from '@/components/NavLink';
-import { 
-  LayoutDashboard, 
-  Mountain, 
-  Users, 
-  Backpack, 
-  Star, 
-  Settings 
+import {
+  LayoutDashboard,
+  Mountain,
+  Users,
+  Backpack,
+  Star,
+  Settings,
+  MapPin
 } from 'lucide-react';
 
 const adminMenuItems = [
@@ -14,6 +15,7 @@ const adminMenuItems = [
   { title: 'Người dùng', url: '/admin/users', icon: Users },
   { title: 'Porter', url: '/admin/porters', icon: Backpack },
   { title: 'Đánh giá', url: '/admin/reviews', icon: Star },
+  { title: 'Địa điểm', url: '/admin/locations', icon: MapPin },
   { title: 'Cài đặt', url: '/admin/settings', icon: Settings },
 ];
 
